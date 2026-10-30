@@ -40,6 +40,13 @@ Same-person check hints are pairs the lab marked `automate = 1`. Different-perso
 1930 person of one pair with the 1940 person of another who has the same surname and sex; the low
 duplicate scores aren't used, since many low-scoring pairs turned out to be the same person.
 
+### Adding a batch
+
+Batch 2 (`dup_data_1930_1940_v2.csv`) goes in after batch 1 so people already partway through keep
+their place. Import it into a tab named **RawPairs2** the same way (Insert new sheet, conversion off), then
+run `addBatch2` in the Apps Script editor. It appends new hints after the existing ones, adds same-person
+checks (`automate = 1`) and 150 different-person checks, and skips pairs it already added.
+
 ## Setting up the script (once)
 
 1. In the Sheet, open Extensions → Apps Script. Replace the starter code with `sheets/Code.gs`, and save.

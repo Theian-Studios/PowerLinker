@@ -46,3 +46,33 @@ export async function sheetsPost(body: Record<string, unknown>): Promise<unknown
   if (!response.ok) throw new Error(`Sheets request failed: ${response.status}`);
   return response.json();
 }
+
+const CURSOR_KEY = "powerlinker.cursor";
+
+/**
+ * Gets how far this browser has answered, so a returning volunteer picks up where they stopped instead
+ * of seeing hint 1 again. The Sheet serves hints in row order and doesn't track who answered what.
+ * @returns {number} The insert-time of the furthest hint answered, or -1 to start from the beginning.
+ */
+export function savedCursor(): number {
+  if (!usingSheets) return -1;
+  try {
+    const value = Number(localStorage.getItem(CURSOR_KEY));
+    return Number.isFinite(value) && value > 0 ? value : -1;
+  } catch {
+    return -1;
+  }
+}
+
+/**
+ * Remembers an answered hint's place, if it's further than any answered before.
+ * @param {number} insertTime - The answered hint's insert-time.
+ */
+export function saveCursor(insertTime: number): void {
+  if (!usingSheets || insertTime <= savedCursor()) return;
+  try {
+    localStorage.setItem(CURSOR_KEY, String(insertTime));
+  } catch {
+    // Without storage the next visit starts from the beginning, as before
+  }
+}

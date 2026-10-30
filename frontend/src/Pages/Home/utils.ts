@@ -10,7 +10,7 @@ import { Hint } from "../../Models/Hint.ts";
 import { Context, ContextState, nextProgress, saveProgress } from "../../Models/Context.ts";
 import { asyncUseHintList } from "../../Hooks/useLambdaFetch.ts";
 import { getPersons } from "../../Services/getPersons.ts";
-import { usingSheets } from "../../Services/sheetsApi.ts";
+import { saveCursor, usingSheets } from "../../Services/sheetsApi.ts";
 
 export const HINTS_PER_REQUEST = 10;
 
@@ -178,6 +178,8 @@ export function useHomeHandlers({
         }
 
         const completed = { ...hint, complete: true, graded: hint.graded || Boolean(hint.dummy) };
+        // A returning volunteer picks up after the furthest hint they've answered
+        if (!hint.dummy) saveCursor(hint.insertTime);
         // Same person and Different extend the streak, Not sure doesn't, and a missed check hint resets it
         const missedCheck = Boolean(hint.dummy && hint.dummy.expected === -vote);
         setContext((prev) => {

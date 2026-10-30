@@ -4,7 +4,7 @@ import { ReactElement, useContext, useEffect, useRef, useState } from "react";
 import newDummyData from "../../Models/ParentDummyData.json";
 import { CONTEXT, ContextState, /* Context, getInitialContext */ } from "../../Models/Context.ts";
 import { invalidateSession } from "../../Hooks/useLambdaFetch.ts";
-import { usingSheets } from "../../Services/sheetsApi.ts";
+import { savedCursor, usingSheets } from "../../Services/sheetsApi.ts";
 import { State } from "../../Hooks/useFetch.ts";
 import useQueue from "../../Hooks/useQueue.ts";
 import { Hint } from "../../Models/Hint.ts";
@@ -63,14 +63,14 @@ export default function Home(): ReactElement {
     setContext((prev) => ({ ...prev, hintQue: [], reviewedHints: [] }));
     // Start the new type's fetch even if the old type's is still in flight; its late answer is ignored
     awaitingHints.current = false;
-    fetchHints(-1, false);
+    fetchHints(savedCursor(), false);
     // eslint-disable-next-line
   }, [hintType]);
 
   useEffect(() => {
     if (context.hintQue.length < MAX_HINTS_IN_QUEUE) {
       const silent = context.hintQue.length > 0;
-      let newTime = -1;
+      let newTime = savedCursor();
       [...context.hintQue, ...context.reviewedHints].forEach(hint => {
         if (hint.insertTime > newTime) newTime = hint.insertTime;
       });
@@ -107,7 +107,7 @@ export default function Home(): ReactElement {
           hintType={hintType}
           setHintType={setHintType}
           loadError={loadError}
-          onRetry={() => fetchHints(-1, false)}
+          onRetry={() => fetchHints(savedCursor(), false)}
         />
       )}
     </main>
