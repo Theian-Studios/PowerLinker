@@ -17,8 +17,9 @@ PRIOR_CORRECT = 1
 PRIOR_ANSWERED = 2
 
 # Lab members enter this on the profile screen to mark their votes as VIP. It's checked here, not in the
-# browser, so it isn't in the frontend's code. Exact match: all capitals, no space.
-VIP_CODE = environ.get("MOCK_VIP_CODE", "RLL2026")
+# browser, so it isn't in the frontend's code. Exact match: all capitals, no space. It comes from the
+# environment and never this file, since the repo is public; with MOCK_VIP_CODE unset, no code is accepted.
+VIP_CODE = environ.get("MOCK_VIP_CODE", "")
 
 
 def _signature(voter_id: str) -> str:
@@ -67,9 +68,9 @@ def is_vip_code(code: str) -> bool:
         code (str): the code as entered; spaces around it are ignored
 
     Returns:
-        bool: whether it's the VIP code
+        bool: whether it's the VIP code; always False when no VIP code is set
     """
-    return hmac.compare_digest(code.strip().encode(), VIP_CODE.encode())
+    return bool(VIP_CODE) and hmac.compare_digest(code.strip().encode(), VIP_CODE.encode())
 
 
 def trust(correct: int, answered: int) -> float:

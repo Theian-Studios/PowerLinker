@@ -6,8 +6,10 @@ import {
   SetStateAction,
   MutableRefObject,
 } from "react";
+import { v4 } from "uuid";
 import { Hint } from "../../Models/Hint.ts";
-import { Context, ContextState, nextProgress, saveProgress } from "../../Models/Context.ts";
+import { QueuedVote } from "../../Hooks/useQueue.ts";
+import { Context, ContextState, nextProgress, saveProgress, saveStrikes } from "../../Models/Context.ts";
 import { asyncUseHintList } from "../../Hooks/useLambdaFetch.ts";
 import { getPersons } from "../../Services/getPersons.ts";
 import { saveCursor, usingSheets } from "../../Services/sheetsApi.ts";
@@ -29,8 +31,8 @@ interface HomeHandlerDeps {
   setLoading: Dispatch<SetStateAction<boolean>>;
   setContext: ContextState["setContext"];
   context: Context;
-  attachQueue: { hint: Hint; vote: -1 | 0 | 1; seconds?: number }[];
-  setAttachQueue: Dispatch<SetStateAction<{ hint: Hint; vote: -1 | 0 | 1; seconds?: number }[]>>;
+  attachQueue: QueuedVote[];
+  setAttachQueue: Dispatch<SetStateAction<QueuedVote[]>>;
   invalidateSession: (sid: string) => void;
   hintType: string;
   setLoadError: (loadError: boolean) => void;
@@ -88,8 +90,9 @@ export function useHomeHandlers({
                 ]);
                 const unseen = hints.filter((h) => !h.dummy && !seenIds.has(hintKey(h)));
                 realNew = unseen.length;
-                // A check hint only comes along with new real hints, so a page of already-seen ones adds nothing
-                const newHints = unseen.length > 0 ? [...unseen, ...hints.filter((h) => h.dummy)] : [];
+                // A check hint only comes along with new real hints, so a page of already-seen ones adds nothing.
+                // The page's order is kept, so the check hint stays at the random spot it was given.
+                const newHints = unseen.length > 0 ? hints.filter((h) => h.dummy || unseen.includes(h)) : [];
                 return { ...prev, hintQue: [...prev.hintQue, ...newHints] };
             });
             setLoading(false);
@@ -144,36 +147,33 @@ export function useHomeHandlers({
 
         // Each check hint is graded once; going back and re-answering it can't add more strikes
         if (hint.dummy && !hint.graded && hint.dummy.expected === -vote) {
-            const newStrikes =
-            context.strikes !== 3
-                ? ((context.strikes + 1) as 0 | 1 | 2 | 3)
-                : context.strikes;
-            console.warn(`Strike ${newStrikes}!`);
-            if (newStrikes === 1) {
-                setAttachQueue([]);
-                console.warn(`cleared votes in queue ${context.strikes}!`);
-                context.strikes += 1;
-            } else if (newStrikes === 2) {
-                setAttachQueue([]);
-                console.warn(`cleared votes in queue ${context.strikes}!`);
-                console.warn(`final strike ${context.strikes}!`);
-                context.strikes += 1;
-            } else if (newStrikes === 3) {
-                invalidateSession(context.sid);
-                console.warn(`invalidated session ${context.strikes}!`);
-            }
+            const newStrikes = Math.min(3, context.strikes + 1) as 0 | 1 | 2 | 3;
+            // The lab's API drops a struggling session's unsent votes; the public site keeps every answer,
+            // and the Sheet's Sessions tab marks the session instead
+            if (newStrikes < 3 && !usingSheets) setAttachQueue([]);
+            // The third miss ends the session once; later misses don't report it again
+            if (newStrikes === 3 && context.strikes < 3) invalidateSession(context.sid);
+            saveStrikes(newStrikes);
             setContext((prev) => ({ ...prev, strikes: newStrikes }));
         }
 
-        // The Sheet also records check hint answers, for each person's accuracy; the lab's API only takes real hints
-        if (!hint.dummy || usingSheets) {
-            const seconds = (Date.now() - shownAt.current) / 1000;
-            // Re-answering after Back replaces the earlier vote instead of sending both
+        // The Sheet also records check hint answers, for each person's accuracy; the lab's API only takes real
+        // hints. A check hint counts once: re-answering it after Back isn't sent, so a miss can't be undone.
+        if (!hint.dummy || (usingSheets && !hint.graded)) {
+            const answer = {
+                id: v4(),
+                hint,
+                vote,
+                seconds: (Date.now() - shownAt.current) / 1000,
+                answeredAt: new Date().toISOString(),
+            };
+            // Re-answering after Back replaces the earlier vote if it hasn't been sent yet; once sent, both are
+            // recorded and the later one is the final answer
             setAttachQueue((a) => {
                 const existing = a.findIndex((item) => hintKey(item.hint) === hintKey(hint));
                 return existing >= 0
-                    ? a.map((item, i) => (i === existing ? { hint, vote, seconds } : item))
-                    : [...a, { hint, vote, seconds }];
+                    ? a.map((item, i) => (i === existing ? answer : item))
+                    : [...a, answer];
             });
         }
 

@@ -1,13 +1,12 @@
 import "./Home.css";
 import DocumentMatcher from "../../Components/DocumentMatcher/DocumentMatcher";
-import { ReactElement, useContext, useEffect, useRef, useState } from "react";
+import { ReactElement, useCallback, useContext, useEffect, useRef, useState } from "react";
 import newDummyData from "../../Models/ParentDummyData.json";
 import { CONTEXT, ContextState, /* Context, getInitialContext */ } from "../../Models/Context.ts";
 import { invalidateSession } from "../../Hooks/useLambdaFetch.ts";
 import { savedCursor, usingSheets } from "../../Services/sheetsApi.ts";
 import { State } from "../../Hooks/useFetch.ts";
-import useQueue from "../../Hooks/useQueue.ts";
-import { Hint } from "../../Models/Hint.ts";
+import useQueue, { QueuedVote } from "../../Hooks/useQueue.ts";
 import { useHomeHandlers } from "./utils.ts";
 
 const MAX_HINTS_IN_QUEUE = 20;
@@ -21,16 +20,19 @@ export default function Home(): ReactElement {
   const { context, setContext } = contextState;
   const hintsDone: number = context.reviewedHints.length;
 
-  const [attachQueue, setAttachQueue] = useState<{ hint: Hint; vote: -1 | 0 | 1; seconds?: number }[]>([]);
-  const [attach, setAttach] = useState<boolean>(false);
+  const [attachQueue, setAttachQueue] = useState<QueuedVote[]>([]);
+  // Changes every 30 seconds while answers are waiting, so ones that failed to send are retried
+  const [retryTick, setRetryTick] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   // The public site only has the lab's possible duplicates
   const [hintType, setHintType] = useState<string>(usingSheets ? "possible_duplicate" : "record_attachment");
   const [loadError, setLoadError] = useState<boolean>(false);
   const awaitingHints = useRef<boolean>(false);
-  // Queue for attaching hints, when there are 10 we send them to the backend
-
-  const sendVotes: State<boolean> = useQueue(attachQueue, attach);
+  // Answers waiting to be sent; each leaves the queue once the backend has it
+  const removeSent = useCallback((ids: string[]) => {
+    setAttachQueue((queue) => queue.filter((item) => !ids.includes(item.id)));
+  }, []);
+  const sendVotes: State<boolean> = useQueue(attachQueue, retryTick, removeSent);
 
   const { fetchHints, submit } = useHomeHandlers({
     awaitingHints,
@@ -44,20 +46,18 @@ export default function Home(): ReactElement {
     setLoadError,
   });
 
+  const answersWaiting = attachQueue.length > 0;
   useEffect(() => {
-    setAttach(false);
-    const interval = setInterval(() => setAttach(true), 60000);
+    if (!answersWaiting) return;
+    const interval = setInterval(() => setRetryTick((tick) => tick + 1), 30000);
     return () => clearInterval(interval);
-  }, [attachQueue]);
+  }, [answersWaiting]);
 
   useEffect(() => {
     if (sendVotes.error) {
       console.error("Error sending votes, will try again: ", sendVotes.error);
     }
-    if (sendVotes.data) {
-      setAttachQueue([]);
-    }
-  }, [sendVotes.data, sendVotes.error]);
+  }, [sendVotes.error]);
 
   useEffect(() => {
     setContext((prev) => ({ ...prev, hintQue: [], reviewedHints: [] }));

@@ -3,7 +3,8 @@
  * deploy it as a web app (Execute as: Me, Who has access: Anyone). See sheets/README.md.
  *
  * Tabs:
- *   Hints   hint_id | hint (JSON)             pairs to vote on, served in row order
+ *   Hints   hint_id | hint (JSON)             pairs to vote on; each volunteer starts at a random row and
+ *                                             goes on from there, wrapping back to the top at the end
  *   Checks  hint_id | expected | hint (JSON)  check hints with known answers (1 same, -1 different)
  *   Votes   one row per answer, added by this script
  *   Voters  one row per person who entered the VIP code
@@ -14,7 +15,9 @@
  * the Sheet's address. A script made from the Sheet's Extensions menu finds its Sheet without it.
  */
 
-const VOTE_HEADERS = ["time", "voter", "session", "hint_id", "check", "expected", "correct", "vote", "answer", "seconds", "vip", "person_1", "person_2"];
+const VOTE_HEADERS = ["time", "voter", "session", "hint_id", "check", "expected", "correct", "vote", "answer", "seconds", "vip", "person_1", "person_2", "vote_id", "answered_at"];
+// How long a vote's ID is remembered so a resent copy isn't recorded twice (Apps Script's cache maximum)
+const SEEN_VOTE_SECONDS = 21600;
 const ANSWERS = { "1": "same", "-1": "different", "0": "not sure" };
 const MAX_COUNT = 25;
 
@@ -26,7 +29,8 @@ const MAX_COUNT = 25;
 function doGet(e) {
   const params = e.parameter || {};
   if (params.dummy === "true") return json(checkHint());
-  const after = Math.max(0, Number(params.last_insert_time) || 0);
+  // A new volunteer starts at a random row, so answers spread across all the hints
+  const after = params.start === "random" ? randomPosition() : Math.max(0, Number(params.last_insert_time) || 0);
   const count = Math.min(MAX_COUNT, Math.max(1, Number(params.count) || 10));
   return json(hintsAfter(after, count));
 }
@@ -58,17 +62,33 @@ function doPost(e) {
 }
 
 /**
- * Gets the hints after a row, in the app's hint format. Row 2 is insert-time 1, and so on.
- * @param {number} after - The insert-time of the last hint the app already has.
+ * Picks a random position among the hints, for a volunteer's first page. It's at most the number of hints,
+ * so adding a batch later doesn't move anyone: positions up to the old last row still point to the same rows.
+ * @returns {number} A position from 0 to the number of hints minus 1.
+ */
+function randomPosition() {
+  const total = tab("Hints").getLastRow() - 1;
+  return total > 0 ? Math.floor(Math.random() * total) : 0;
+}
+
+/**
+ * Gets the hints after a position, in the app's hint format. Positions wrap around the Hints tab, so
+ * each volunteer can start at a random position and keep going past the last row back to the first:
+ * position 1 is row 2, and with 100 hints, position 101 is row 2 again.
+ * @param {number} after - The position of the last hint the app already has.
  * @param {number} count - How many to return.
- * @returns {Object[]} The hints.
+ * @returns {Object[]} The hints, each with its position as "insert-time".
  */
 function hintsAfter(after, count) {
   const sheet = tab("Hints");
-  const first = after + 2;
-  const last = Math.min(sheet.getLastRow(), first + count - 1);
-  if (last < first) return [];
-  return sheet.getRange(first, 1, last - first + 1, 2).getValues().map(([id, data], i) => ({
+  const total = sheet.getLastRow() - 1;
+  if (total < 1) return [];
+  const wanted = Math.min(count, total);
+  const start = after % total;
+  const firstPart = Math.min(wanted, total - start);
+  const rows = sheet.getRange(start + 2, 1, firstPart, 2).getValues();
+  if (firstPart < wanted) rows.push(...sheet.getRange(2, 1, wanted - firstPart, 2).getValues());
+  return rows.map(([id, data], i) => ({
     ...JSON.parse(data),
     hint_id: String(id),
     "insert-time": after + i + 1,
@@ -96,7 +116,7 @@ function checkHint() {
 function addVotes(body) {
   const voter = String(body.voter || "").slice(0, 64);
   const items = Array.isArray(body.items) ? body.items.slice(0, 100) : [];
-  const vip = voter && PropertiesService.getScriptProperties().getProperty(`vip:${voter}`) === "1";
+  const vip = Boolean(voter) && cachedProperty(`vip:${voter}`) === "1";
   const rows = items.map((item) => {
     const vote = Number(item.vote && item.vote.vote);
     const isCheck = item.expected === 1 || item.expected === -1;
@@ -107,17 +127,41 @@ function addVotes(body) {
       String(item.hint_id || ""),
       isCheck,
       isCheck ? item.expected : "",
-      isCheck ? vote === item.expected : "",
+      // "Not sure" on a check hint is neither right nor wrong, as in the app
+      isCheck && vote !== 0 ? vote === item.expected : "",
       vote,
       ANSWERS[String(vote)] || "",
       typeof item.seconds === "number" ? Math.round(item.seconds) : "",
       vip,
       String((item.hint && item.hint.id1) || ""),
       String((item.hint && item.hint.id2) || ""),
+      String(item.vote_id || "").slice(0, 64),
+      // When the volunteer answered; "time" is when the Sheet received it, which can be later after a retry
+      answeredAt(item.answered_at),
     ];
   });
-  appendRows("Votes", VOTE_HEADERS, rows);
-  return { added: rows.length };
+  // The app may send an answer again when it didn't hear back in time; each answer's ID is recorded once
+  return withLock(() => {
+    const cache = CacheService.getScriptCache();
+    const keys = rows.map((row) => row[13]).filter(Boolean).map((id) => `vote:${id}`);
+    const seen = keys.length ? cache.getAll(keys) : {};
+    const fresh = rows.filter((row) => !row[13] || !seen[`vote:${row[13]}`]);
+    writeRows("Votes", VOTE_HEADERS, fresh);
+    const remember = {};
+    fresh.forEach((row) => { if (row[13]) remember[`vote:${row[13]}`] = "1"; });
+    if (Object.keys(remember).length) cache.putAll(remember, SEEN_VOTE_SECONDS);
+    return { added: fresh.length, skipped: rows.length - fresh.length };
+  });
+}
+
+/**
+ * Reads the time the app says an answer was given.
+ * @param {*} value - An ISO date string from the app.
+ * @returns {Date|string} The time, or blank when it's missing or not a date.
+ */
+function answeredAt(value) {
+  const date = typeof value === "string" ? new Date(value.slice(0, 40)) : null;
+  return date && !isNaN(date.getTime()) ? date : "";
 }
 
 /**
@@ -131,6 +175,7 @@ function checkCode(body) {
   const voter = String(body.voter || "").slice(0, 64);
   if (!expected || !voter || String(body.code || "").trim() !== expected) return { accepted: false };
   PropertiesService.getScriptProperties().setProperty(`vip:${voter}`, "1");
+  CacheService.getScriptCache().put(`prop:vip:${voter}`, "1", SEEN_VOTE_SECONDS);
   appendRows("Voters", ["time", "voter", "vip"], [[new Date(), voter, true]]);
   return { accepted: true };
 }
@@ -143,12 +188,35 @@ function checkCode(body) {
  * @param {Array[]} rows - The rows to add.
  */
 function appendRows(name, headers, rows) {
+  withLock(() => writeRows(name, headers, rows));
+}
+
+/**
+ * Adds rows after a tab's last row. Call it while holding the script lock.
+ * @param {string} name - The tab name.
+ * @param {string[]} headers - Its column headers, for a new tab.
+ * @param {Array[]} rows - The rows to add.
+ */
+function writeRows(name, headers, rows) {
   if (rows.length === 0) return;
+  const sheet = tab(name, headers);
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+}
+
+/**
+ * Runs a function while holding the script lock, so two requests can't write over each other.
+ * @param {Function} fn - What to run.
+ * @returns {*} What it returns.
+ */
+function withLock(fn) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    const sheet = tab(name, headers);
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    const result = fn();
+    // Write buffered changes before letting the next request in, or it can read a stale last row and
+    // write over this one
+    SpreadsheetApp.flush();
+    return result;
   } finally {
     lock.releaseLock();
   }
@@ -161,8 +229,7 @@ function appendRows(name, headers, rows) {
  * @returns {GoogleAppsScript.Spreadsheet.Sheet} The tab.
  */
 function tab(name, headers) {
-  const id = PropertiesService.getScriptProperties().getProperty("SHEET_ID");
-  const book = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  const book = spreadsheet();
   let sheet = book.getSheetByName(name);
   if (!sheet) {
     sheet = book.insertSheet(name);
@@ -173,6 +240,38 @@ function tab(name, headers) {
   }
   return sheet;
 }
+
+let openedSpreadsheet = null;
+
+/**
+ * Opens the results Sheet once per request: by SHEET_ID for a standalone script, or the Sheet the
+ * script is attached to.
+ * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet} The Sheet.
+ */
+function spreadsheet() {
+  if (!openedSpreadsheet) {
+    const id = cachedProperty("SHEET_ID");
+    openedSpreadsheet = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  }
+  return openedSpreadsheet;
+}
+
+/**
+ * Reads a script property through the cache, since Apps Script limits property reads per day.
+ * @param {string} key - The property name.
+ * @returns {string|null} Its value, or null when it isn't set.
+ */
+function cachedProperty(key) {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get(`prop:${key}`);
+  if (hit !== null) return hit === NOT_SET ? null : hit;
+  const value = PropertiesService.getScriptProperties().getProperty(key);
+  cache.put(`prop:${key}`, value === null ? NOT_SET : value, SEEN_VOTE_SECONDS);
+  return value;
+}
+
+/** Stands for "no such property" in the cache, which can't store null. */
+const NOT_SET = "\u0000";
 
 // ---- Building the Hints and Checks tabs from Joe Price's files ----
 //
@@ -189,14 +288,14 @@ const DIFFERENT_CHECKS = 150;
  */
 function buildHints() {
   const pairsByid = {};
-  for (const row of rowsAsObjects(tab("RawPairs"))) (pairsByid[row.id] = pairsByid[row.id] || []).push(row);
+  for (const row of inputRows("RawPairs")) (pairsByid[row.id] = pairsByid[row.id] || []).push(row);
   const pairs = Object.values(pairsByid)
     .filter((rows) => rows.length === 2)
     .map((rows) => rows.sort((a, b) => String(a.year).localeCompare(String(b.year))))
     .sort((a, b) => Number(a[0].id) - Number(b[0].id));
 
   const family = {};
-  for (const row of rowsAsObjects(tab("RawFamily"))) (family[row.focus_pid] = family[row.focus_pid] || []).push(row);
+  for (const row of inputRows("RawFamily")) (family[row.focus_pid] = family[row.focus_pid] || []).push(row);
 
   const random = seededRandom(1930);
   const hints = [];
@@ -220,7 +319,7 @@ function buildHints() {
  * Adds Joe's second batch, imported into a tab named RawPairs2, after the hints already there.
  */
 function addBatch2() {
-  addBatch("RawPairs2", "b2", DIFFERENT_CHECKS);
+  addBatch("RawPairs2", "b2", DIFFERENT_CHECKS, "RawFamily");
 }
 
 /**
@@ -229,17 +328,20 @@ function addBatch2() {
  * @param {string} rawTab - The tab holding the batch's pairs file.
  * @param {string} prefix - Starts each hint ID, like "b2", so batches don't collide.
  * @param {number} differentCount - How many different-person check hints to make from the batch.
+ * @param {string} [familyTab] - The tab holding the batch's family file, if there is one; Joe's family files
+ *   can share one tab, since rows are looked up by person.
  */
-function addBatch(rawTab, prefix, differentCount) {
+function addBatch(rawTab, prefix, differentCount, familyTab) {
   const pairsByid = {};
-  for (const row of rowsAsObjects(tab(rawTab))) (pairsByid[row.id] = pairsByid[row.id] || []).push(row);
+  for (const row of inputRows(rawTab)) (pairsByid[row.id] = pairsByid[row.id] || []).push(row);
   const pairs = Object.values(pairsByid)
     .filter((rows) => rows.length === 2)
     .map((rows) => rows.sort((a, b) => String(a.year).localeCompare(String(b.year))))
     .sort((a, b) => Number(a[0].id) - Number(b[0].id));
 
   const family = {};
-  for (const row of rowsAsObjects(tab("RawFamily"))) (family[row.focus_pid] = family[row.focus_pid] || []).push(row);
+  const familyRows = familyTab && spreadsheet().getSheetByName(familyTab) ? inputRows(familyTab) : [];
+  for (const row of familyRows) (family[row.focus_pid] = family[row.focus_pid] || []).push(row);
 
   const existing = new Set([...existingIds("Hints"), ...existingIds("Checks")]);
   const random = seededRandom(1940);
@@ -288,6 +390,18 @@ function appendInChunks(name, rows) {
 }
 
 /**
+ * Reads an imported file's tab, which must exist and have data: running a build against a missing or
+ * misnamed tab would otherwise create it empty and wipe the hints.
+ * @param {string} name - The tab name.
+ * @returns {Object[]} One object per row.
+ */
+function inputRows(name) {
+  const sheet = spreadsheet().getSheetByName(name);
+  if (!sheet || sheet.getLastRow() < 2) throw new Error(`No data in a tab named ${name}. Import the file into it first.`);
+  return rowsAsObjects(sheet);
+}
+
+/**
  * Reads a tab as objects keyed by its header row, with every value as text.
  * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - The tab.
  * @returns {Object[]} One object per row.
@@ -304,6 +418,7 @@ function rowsAsObjects(sheet) {
  * @param {Array[]} rows - The rows.
  */
 function writeTab(name, headers, rows) {
+  if (rows.length === 0) throw new Error(`Nothing to write to ${name}; it was left as it was.`);
   const sheet = tab(name, headers);
   sheet.clearContents();
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -407,11 +522,50 @@ function differentPeople(pairs, count, random) {
   }
   const result = [];
   for (const [earlier, later] of shuffle(pairs.slice(), random)) {
-    const others = (bySurname[`${earlier.surname.toLowerCase()}|${earlier.gender}`] || []).filter((row) => row.pid !== later.pid);
+    const others = (bySurname[`${earlier.surname.toLowerCase()}|${earlier.gender}`] || [])
+      .filter((row) => row.pid !== later.pid && !couldBeSamePerson(earlier, row));
     if (others.length) result.push([earlier, others[Math.floor(random() * others.length)]]);
     if (result.length === count) break;
   }
   return result;
+}
+
+/** First names that can stand for anyone, so they can't show two people are different. */
+const PLACEHOLDER_FIRST_NAMES = new Set(["junior", "jr", "sonny", "sonnie", "bud", "buddy", "baby", "infant", "son", "daughter", "sister", "brother", "mrs", "miss", "mr"]);
+
+/**
+ * Checks whether two people from different pairs might still be the same person, so they're not used as a
+ * "different people" check: first names that are the same, one letter apart (Ida and Ada) or a stand-in
+ * like "Junior", with no birth years 5 or more apart and no different birthplaces to tell them apart.
+ * @param {Object} a - One person's row.
+ * @param {Object} b - The other's.
+ * @returns {boolean} True when nothing shown would tell them apart.
+ */
+function couldBeSamePerson(a, b) {
+  const first = (row) => String(row.given_name || "").trim().toLowerCase().replace(/[.,]/g, "").split(/\s+/)[0];
+  const fa = first(a), fb = first(b);
+  const similar = !fa || !fb || PLACEHOLDER_FIRST_NAMES.has(fa) || PLACEHOLDER_FIRST_NAMES.has(fb) || oneEditApart(fa, fb);
+  if (!similar) return false;
+  const yearOf = (row) => Number((String(row.birth_date || "").match(/\d{4}/) || [])[0]) || null;
+  const placeOf = (row) => String(row.birth_place || "").split(",").map((part) => part.trim().toLowerCase()).filter(Boolean).slice(-2).join(",");
+  const yearsApart = yearOf(a) && yearOf(b) ? Math.abs(yearOf(a) - yearOf(b)) >= 5 : false;
+  const placesDiffer = placeOf(a) && placeOf(b) ? placeOf(a) !== placeOf(b) : false;
+  return !yearsApart && !placesDiffer;
+}
+
+/**
+ * Checks whether two words are equal or one letter added, dropped or changed apart.
+ * @param {string} a - One word.
+ * @param {string} b - The other.
+ * @returns {boolean} True for "ida" and "ada", or "jon" and "john".
+ */
+function oneEditApart(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
 }
 
 /**

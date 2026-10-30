@@ -11,15 +11,23 @@ GitHub Pages (the app)  ──GET hints / POST answers──▶  Apps Script (Co
 
 | Tab | What's in it |
 |---|---|
-| Summary | Live counts: answers, people, check hint accuracy, time per answer |
-| Votes | One row per answer: time, anonymous voter ID, session, hint ID, whether it was a check hint and if it was right, the answer, seconds spent, VIP, both people's tree IDs |
-| Hints | The pairs to vote on, served in row order. Each row is a hint ID and the hint as JSON |
+| Summary | Live counts: answers, people, check hint accuracy ("Not sure" not counted), time per answer |
+| Votes | One row per answer: time received, anonymous voter ID, session, hint ID, whether it was a check hint and if it was right ("Not sure" is left blank), the answer, seconds spent, VIP, both people's tree IDs, the answer's ID, and when it was given |
+| Hints | The pairs to vote on. Each volunteer starts at a random row and goes on from there, wrapping back to the top at the end. Each row is a hint ID and the hint as JSON |
 | Checks | Check hints with known answers: 1 is the same person, -1 is different people |
 | Voters | People who entered the VIP code |
 | Sessions | Sessions ended after three missed check hints |
 
-Answers are only ever added. If someone goes back and changes an answer, both rows are kept; the later
-one is their final answer.
+Answers are only ever added. If someone goes back and changes an answer after it was sent, both rows are
+kept; the later one is their final answer. Each answer carries a `vote_id`, and the script records each
+`vote_id` once, so an answer the app sends again (after a timeout, or as the page closes) isn't counted twice.
+When analyzing, keep one row per `vote_id`, then the latest row per voter and hint by `answered_at`
+(`time` is when the Sheet received it, which can be later after a retry). A check hint is graded on its first
+answer only: going Back and re-answering one isn't sent.
+
+The Votes tab has room for 50,000 answers, with `time` and `answered_at` formatted as date and time. Rows
+the script adds past that may show only the date; select columns A and O and choose Format → Number →
+Date time.
 
 ## Making the hints
 
@@ -40,12 +48,23 @@ Same-person check hints are pairs the lab marked `automate = 1`. Different-perso
 1930 person of one pair with the 1940 person of another who has the same surname and sex; the low
 duplicate scores aren't used, since many low-scoring pairs turned out to be the same person.
 
+Once volunteers have started, don't run `buildHints` again: it rewrites the Hints and Checks tabs, which
+changes what each position and check-hint ID points to. Add new data with `addBatch` instead.
+
+Different-person check hints skip pairs a careful volunteer couldn't tell apart: similar first names (the
+same, one letter apart, or a stand-in like "Junior") with no birth years 5 or more apart and no different
+birthplaces.
+
 ### Adding a batch
 
 Batch 2 (`dup_data_1930_1940_v2.csv`) goes in after batch 1 so people already partway through keep
 their place. Import it into a tab named **RawPairs2** the same way (Insert new sheet, conversion off), then
 run `addBatch2` in the Apps Script editor. It appends new hints after the existing ones, adds same-person
 checks (`automate = 1`) and 150 different-person checks, and skips pairs it already added.
+
+Family is looked up by person in the **RawFamily** tab, so a family file for a new batch can be imported
+into that tab with "Append to current sheet". `addBatch` and `buildHints` stop with an error if a tab they
+read is missing or empty, rather than writing empty Hints or Checks tabs.
 
 ## Setting up the script (once)
 

@@ -92,6 +92,19 @@ const PLACE_ALIASES: Record<string, string> = {
   "ottoman empire": "turkey",
   "bohemia": "czechoslovakia",
   "czech republic": "czechoslovakia",
+  "czechia": "czechoslovakia",
+  "türkiye": "turkey",
+  "turkiye": "turkey",
+  "irish free state": "ireland",
+  "eire": "ireland",
+  "éire": "ireland",
+  "republic of ireland": "ireland",
+  "british north america": "canada",
+  "dominion of canada": "canada",
+  "kingdom of the two sicilies": "italy",
+  "two sicilies": "italy",
+  // The Republic of Texas became the state, so "Austin, Republic of Texas" is in Texas
+  "republic of texas": "texas",
 };
 
 /**
@@ -500,7 +513,7 @@ function givenParts(name: string): string[] {
  * @param b - The other.
  * @returns True if they name the same person.
  */
-function sameGivenName(a: string, b: string): boolean {
+export function sameGivenName(a: string, b: string): boolean {
   if (a === b) return true;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
   if (short.length >= 3 && long.startsWith(short)) return true;

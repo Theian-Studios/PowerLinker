@@ -13,4 +13,6 @@ export default interface Match {
   matchingTreePeople: Person[];
   attached?: boolean;
   selectedCandidateIndex?: number;
+  /** A relative only the tree side lists (Person 2 on a possible duplicate); recordPerson is then a blank stand-in. */
+  onlyOnTree?: boolean;
 }

@@ -23,6 +23,7 @@ from csv import DictReader, writer
 from json import dumps
 from os import path as os_path
 from random import Random
+from re import search
 
 from backend.mock.import_duplicates import readable_date
 
@@ -152,12 +153,70 @@ def different_people(pairs: list[list[dict]], count: int, rng: Random) -> list[t
             by_surname[(later["surname"].lower(), later["gender"])].append(later)
     result = []
     for earlier, later in rng.sample(pairs, len(pairs)):
-        others = [row for row in by_surname.get((earlier["surname"].lower(), earlier["gender"]), []) if row["pid"] != later["pid"]]
+        others = [row for row in by_surname.get((earlier["surname"].lower(), earlier["gender"]), [])
+                  if row["pid"] != later["pid"] and not could_be_same_person(earlier, row)]
         if others:
             result.append((earlier, rng.choice(others)))
         if len(result) == count:
             break
     return result
+
+
+# First names that can stand for anyone, so they can't show two people are different
+PLACEHOLDER_FIRST_NAMES = {"junior", "jr", "sonny", "sonnie", "bud", "buddy", "baby", "infant", "son", "daughter", "sister", "brother", "mrs", "miss", "mr"}
+
+
+def one_edit_apart(a: str, b: str) -> bool:
+    """Checks whether two words are equal or one letter added, dropped or changed apart.
+
+    Args:
+        a (str): one word
+        b (str): the other
+
+    Returns:
+        bool: True for "ida" and "ada", or "jon" and "john"
+    """
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1:
+        return False
+    i = 0
+    while i < len(a) and i < len(b) and a[i] == b[i]:
+        i += 1
+    if len(a) == len(b):
+        return a[i + 1:] == b[i + 1:]
+    return a[i + 1:] == b[i:] if len(a) > len(b) else a[i:] == b[i + 1:]
+
+
+def could_be_same_person(a: dict, b: dict) -> bool:
+    """Checks whether two people from different pairs might still be the same person, so they aren't used
+    as a "different people" check: similar first names with nothing shown to tell them apart.
+
+    Args:
+        a (dict): one person's row
+        b (dict): the other's
+
+    Returns:
+        bool: True when nothing shown would tell them apart
+    """
+    def first(row: dict) -> str:
+        words = row["given_name"].strip().lower().replace(".", " ").replace(",", " ").split()
+        return words[0] if words else ""
+
+    fa, fb = first(a), first(b)
+    if fa and fb and fa not in PLACEHOLDER_FIRST_NAMES and fb not in PLACEHOLDER_FIRST_NAMES and not one_edit_apart(fa, fb):
+        return False
+
+    def year(row: dict) -> int | None:
+        found = search(r"\d{4}", row["birth_date"] or "")
+        return int(found.group()) if found else None
+
+    ya, yb = year(a), year(b)
+    years_apart = bool(ya and yb and abs(ya - yb) >= 5)
+    pa = [p.strip().lower() for p in (a["birth_place"] or "").split(",") if p.strip()][-2:]
+    pb = [p.strip().lower() for p in (b["birth_place"] or "").split(",") if p.strip()][-2:]
+    places_differ = bool(pa and pb and pa != pb)
+    return not years_apart and not places_differ
 
 
 def main() -> None:

@@ -12,6 +12,9 @@ export const usingSheets = Boolean(SHEETS_URL);
 
 const VOTER_KEY = "powerlinker.voter";
 
+/** This visit's voter ID when the browser won't store one, so storage-less visitors don't share an ID. */
+let visitVoterId: string | undefined;
+
 /**
  * Gets this browser's anonymous voter ID, making one the first time. Apps Script can't set cookies
  * for the app, so it's kept in local storage instead; it ties each person's answers together in the Sheet.
@@ -26,7 +29,8 @@ export function voterId(): string {
     return id;
   } catch {
     // Private browsing can block storage; answers still count, just not tied together across visits
-    return "no-storage";
+    visitVoterId ??= v4();
+    return visitVoterId;
   }
 }
 
@@ -47,12 +51,28 @@ export async function sheetsPost(body: Record<string, unknown>): Promise<unknown
   return response.json();
 }
 
+/**
+ * Sends a request to the Sheet's script as the page closes. The browser finishes a beacon after the page
+ * is gone, though nothing can read the answer.
+ * @param {Record<string, unknown>} body - The action and its data; the voter ID is added.
+ * @returns {boolean} Whether the browser accepted it for sending.
+ */
+export function sheetsBeacon(body: Record<string, unknown>): boolean {
+  if (!SHEETS_URL || typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") return false;
+  try {
+    const data = new Blob([JSON.stringify({ ...body, voter: voterId() })], { type: "text/plain;charset=utf-8" });
+    return navigator.sendBeacon(SHEETS_URL, data);
+  } catch {
+    return false;
+  }
+}
+
 const CURSOR_KEY = "powerlinker.cursor";
 
 /**
- * Gets how far this browser has answered, so a returning volunteer picks up where they stopped instead
- * of seeing hint 1 again. The Sheet serves hints in row order and doesn't track who answered what.
- * @returns {number} The insert-time of the furthest hint answered, or -1 to start from the beginning.
+ * Gets how far this browser has answered, so a returning volunteer picks up where they stopped. A new
+ * volunteer has no place yet; the Sheet then starts them at a random hint (see asyncUseHintList).
+ * @returns {number} The position of the furthest hint answered, or -1 for none.
  */
 export function savedCursor(): number {
   if (!usingSheets) return -1;

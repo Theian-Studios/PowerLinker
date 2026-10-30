@@ -10,6 +10,8 @@ import { Loading } from "../Loading/Loading";
 import { HintInfo } from "../../Models/Hint.ts";
 import { CONTEXT, ContextState, saveProgress } from "../../Models/Context.ts";
 import { Relationship } from "../../Models/Relationship.ts";
+import { IPerson, Person } from "../../Models/Person.ts";
+import { sameGivenName } from "../../Services/highlightScoring.ts";
 import useSlowDownNudge from "../../Hooks/useSlowDownNudge.ts";
 import { haptic } from "../../Services/haptics.ts";
 
@@ -25,6 +27,55 @@ const RELATIVE_KINDS: Partial<Record<Relationship, Relationship[]>> = {
   [Relationship.Brother]: [Relationship.Brother, Relationship.Sibling],
   [Relationship.Sister]: [Relationship.Sister, Relationship.Sibling],
 };
+
+/**
+ * Gets a person's birth year, if their birth has a date.
+ * @param person - A record or tree person.
+ * @returns The year, or undefined.
+ */
+function birthYear(person: Person): number | undefined {
+  return person.birth?.date?.likelyYear ?? undefined;
+}
+
+/**
+ * Checks whether a tree relative could be a record relative: compatible kinds (parent and father) and the
+ * same first name or a form of it (Benjamin and Benny, Willie and William).
+ * @param recordPerson - A relative on the record (Person 1's family on a possible duplicate).
+ * @param treePerson - A relative on the tree side.
+ * @returns True when they could be the same relative.
+ */
+function couldBeSameRelative(recordPerson: Person, treePerson: Person): boolean {
+  const kinds = RELATIVE_KINDS[recordPerson.relationship as Relationship] ?? [recordPerson.relationship];
+  if (!kinds.includes(treePerson.relationship as Relationship)) return false;
+  const first = (recordPerson.firstName ?? "").trim().split(/\s+/)[0]?.toLowerCase();
+  const treeFirst = (treePerson.firstName ?? "").trim().split(/\s+/)[0]?.toLowerCase();
+  if (!first || !treeFirst) return false;
+  return (treePerson.firstName ?? "").toLowerCase().split(/\s+/).includes(first) || sameGivenName(first, treeFirst);
+}
+
+/**
+ * Checks whether two people's birth years are no more than two apart, or unknown on either side.
+ * @param a - One person.
+ * @param b - The other.
+ * @returns True when the years don't rule them out.
+ */
+function birthYearsAgree(a: Person, b: Person): boolean {
+  const ya = birthYear(a), yb = birthYear(b);
+  return ya === undefined || yb === undefined || Math.abs(ya - yb) <= 2;
+}
+
+/**
+ * Makes a blank stand-in for the record side of a relative only the tree side lists, so the relative can be
+ * shown with "–" on the other side.
+ * @param treePerson - The relative on the tree side.
+ * @returns A person with the same relationship and nothing else.
+ */
+function blankFor(treePerson: Person): Person {
+  const blank = new Person({} as IPerson);
+  blank.relationship = treePerson.relationship;
+  blank.relationshipGroup = treePerson.relationshipGroup;
+  return blank;
+}
 
 /** How long the answer buttons pause when a new hint appears. */
 const NEXT_HINT_PAUSE_MS = 350;
@@ -185,7 +236,9 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     const sortedRecordPeople = combinedRecordPeople?.sort((a, b) => (ranks.get(a.relationship) ?? ranks.size) - (ranks.get(b.relationship) ?? ranks.size));
     const sortedTreePeople = combinedTreePeople.sort((a, b) => (ranks.get(a.relationship) ?? ranks.size) - (ranks.get(b.relationship) ?? ranks.size));
 
-    let _matches = sortedRecordPeople?.map((recordPerson) => {
+    // Each tree person pairs with one record person at most
+    const used = new Set<Person>();
+    let _matches: Match[] | undefined = sortedRecordPeople?.map((recordPerson) => {
       let matchingTreePeople = sortedTreePeople.filter(
         (treePerson) => Boolean(recordPerson.matchpid) && treePerson.pid === recordPerson.matchpid
       );
@@ -194,15 +247,15 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       if (matchingTreePeople.length === 0 && recordPerson.relationship === Relationship.FocusPerson && tree.focusPerson) {
         matchingTreePeople = [tree.focusPerson];
       }
-      // A relative whose match ID points elsewhere can still be paired by kind and first name:
-      // the record's "parent Hipolito" is the tree's "father Hipolito"
+      // A relative whose match ID points elsewhere can still be paired by kind and first name: the record's
+      // "parent Hipolito" is the tree's "father Hipolito", and "son Benjamin" is "son Benny". When several could
+      // be, the one born within two years wins; otherwise the first, so differences show side by side.
       if (matchingTreePeople.length === 0 && recordPerson.relationship !== Relationship.FocusPerson) {
-        const kinds = RELATIVE_KINDS[recordPerson.relationship] ?? [recordPerson.relationship];
-        const first = (recordPerson.firstName ?? "").trim().split(/\s+/)[0]?.toLowerCase();
-        const byName = sortedTreePeople.find((treePerson) =>
-          kinds.includes(treePerson.relationship) && first && (treePerson.firstName ?? "").toLowerCase().split(/\s+/).includes(first));
+        const candidates = sortedTreePeople.filter((treePerson) => !used.has(treePerson) && couldBeSameRelative(recordPerson, treePerson));
+        const byName = candidates.find((treePerson) => birthYearsAgree(recordPerson, treePerson)) ?? candidates[0];
         if (byName) matchingTreePeople = [byName];
       }
+      matchingTreePeople.forEach((person) => used.add(person));
 
       return {
         recordPerson,
@@ -210,6 +263,17 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
         selectedCandidateIndex: matchingTreePeople.length >= 1 ? 0 : undefined,
       };
     });
+
+    // Two people on the tree are compared on a possible duplicate, so relatives only Person 2 has are shown too
+    if (context.hintQue[0]?.type === "possible_duplicate") {
+      const onlyOnTree = sortedTreePeople.filter((person) => person.relationship !== Relationship.FocusPerson && !used.has(person));
+      _matches = [...(_matches ?? []), ...onlyOnTree.map((treePerson) => ({
+        recordPerson: blankFor(treePerson),
+        matchingTreePeople: [treePerson],
+        selectedCandidateIndex: 0,
+        onlyOnTree: true,
+      }))];
+    }
 
     setMatches(_matches || []);
     if (record.focusPerson) setLoading(false);
@@ -275,6 +339,16 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       const treePerson = match.matchingTreePeople[match.selectedCandidateIndex ?? 0];
       // The tree person this record would be attached to; family on the record is checked against their lifetime
       const treeFocus = matches[0]?.matchingTreePeople[matches[0].selectedCandidateIndex ?? 0];
+      // A relative only Person 2 lists is checked against Person 1's lifetime instead, with the columns swapped
+      if (match.onlyOnTree && treePerson) {
+        return {
+          name: (treePerson.firstName ?? "").trim().split(/\s+/)[0],
+          heading: treePerson.relationship,
+          rows: [...buildRows(match.recordPerson, treePerson, false), ...familyTimelineRows(treePerson, matches[0]?.recordPerson, true)],
+          notOnTree: false,
+          onlyOnTree: true,
+        };
+      }
       return {
         name: (match.recordPerson.firstName ?? "").trim().split(/\s+/)[0],
         // The main person is shown by first name only (no middle names); family members keep their relationship

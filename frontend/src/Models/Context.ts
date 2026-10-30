@@ -50,13 +50,40 @@ export async function getInitialContext() {
     sid: sid,
     hintQue: [],
     reviewedHints: [],
-    strikes: 0 as 0 | 1 | 2 | 3,
+    // Strikes last for the session, so reloading the page doesn't clear them
+    strikes: readStrikes(),
     streak: readStored(STREAK_KEY),
     points: readStored(POINTS_KEY),
   } as Context;
 }
 
 const STREAK_KEY = "powerlinker.streak";
+const STRIKES_KEY = "powerlinker.strikes";
+
+/**
+ * Reads this session's missed check hints, kept in session storage alongside the session ID.
+ * @returns {0 | 1 | 2 | 3} The strikes so far.
+ */
+function readStrikes(): 0 | 1 | 2 | 3 {
+  try {
+    const value = Number(sessionStorage.getItem(STRIKES_KEY));
+    return value === 1 || value === 2 || value === 3 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Saves this session's missed check hints so a reload keeps them.
+ * @param strikes - The strikes so far.
+ */
+export function saveStrikes(strikes: 0 | 1 | 2 | 3) {
+  try {
+    sessionStorage.setItem(STRIKES_KEY, String(strikes));
+  } catch {
+    // Without storage, strikes last until the page is reloaded, as before
+  }
+}
 const POINTS_KEY = "powerlinker.points";
 
 /**

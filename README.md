@@ -130,7 +130,8 @@ From the repo root:
 .venv/bin/python -m backend.mock.server
 ```
 or from `frontend/`: `npm run mock-backend` (uses `.venv` automatically). Then start the frontend with `npm run dev` and
-open http://localhost:5173.
+open http://localhost:5173. To try the profile button's VIP code, set `MOCK_VIP_CODE` to a code of your choice before
+starting the mock; it accepts no code without it. Don't put the real code in the repo, which is public.
 
 ### Tests
 ```

@@ -10,6 +10,8 @@ export interface FamilyMember {
   name: string;
   rows: CompareRow[];
   notOnTree: boolean;
+  /** Listed only on the tree side: Person 2's family on a possible duplicate. */
+  onlyOnTree?: boolean;
 }
 
 type Worst = "bad" | "close" | "ok" | "none";
@@ -17,6 +19,7 @@ type Worst = "bad" | "close" | "ok" | "none";
 interface Entry {
   who: string;
   worst: Worst;
+  onlyOnTree?: boolean;
   /** Conflicts first, then variations. */
   issues: CompareRow[];
 }
@@ -38,8 +41,8 @@ function summarize(family: FamilyMember[]): Entry[] {
       const issues = member.rows
         .filter((row) => row.status === "bad" || row.status === "close")
         .sort((a, b) => ORDER[a.status as Worst] - ORDER[b.status as Worst]);
-      const worst: Worst = issues.length ? (issues[0].status as Worst) : member.notOnTree ? "none" : "ok";
-      return { who: `${member.heading} ${member.name}`.trim(), worst, issues };
+      const worst: Worst = issues.length ? (issues[0].status as Worst) : member.notOnTree || member.onlyOnTree ? "none" : "ok";
+      return { who: `${member.heading} ${member.name}`.trim(), worst, issues, onlyOnTree: member.onlyOnTree };
     })
     .sort((a, b) => ORDER[a.worst] - ORDER[b.worst]);
 }
@@ -80,7 +83,7 @@ export default function FamilySummary({ family, sides }: { family: FamilyMember[
                   <b>{entry.who}</b>
                   {entry.worst === "ok" && <span className="family-note"> · no differences</span>}
                   {/* Both people are on the tree when comparing two of them, so it's the other one's family that lacks them */}
-                  {entry.worst === "none" && <span className="family-note"> · {sides ? `not listed for ${sides[1]}` : "isn’t on the tree"}</span>}
+                  {entry.worst === "none" && <span className="family-note"> · {sides ? `not listed for ${entry.onlyOnTree ? sides[0] : sides[1]}` : "isn’t on the tree"}</span>}
                 </span>
                 {entry.issues.slice(0, MAX_PER_PERSON).map((row, j) => (
                   <span key={j} className="family-detail">

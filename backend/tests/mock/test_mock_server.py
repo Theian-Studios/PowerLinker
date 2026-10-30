@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.mock import store as store_module
+from backend.mock import voters as voters_module
 from backend.mock.server import app, store
 from backend.mock.voters import COOKIE_MAX_AGE, COOKIE_NAME, new_cookie_value, read_cookie_value, trust
 
@@ -256,8 +257,13 @@ class TestSession:
 
 
 class TestProfileCode:
+    @pytest.fixture(autouse=True)
+    def vip_code(self, monkeypatch):
+        # The repo is public, so the tests use a code of their own, never the real one
+        monkeypatch.setattr(voters_module, "VIP_CODE", "TEST2026")
+
     def test_vip_code_marks_voter_and_their_votes(self, client):
-        assert client.post("/profile/code", json={"code": "RLL2026"}).json() == {"accepted": True}
+        assert client.post("/profile/code", json={"code": "TEST2026"}).json() == {"accepted": True}
         client.put("/hints", json=[vote_item("mock://hint/1", 1)])
 
         state = client.get("/mock/state").json()
@@ -265,17 +271,22 @@ class TestProfileCode:
         assert pool_votes(client, "mock://hint/1")[0]["vip"] is True
 
     def test_code_must_match_exactly(self, client):
-        for code in ["rll2026", "RLL 2026", "Rll2026", "RLL2025", ""]:
+        for code in ["test2026", "TEST 2026", "Test2026", "TEST2025", ""]:
             assert client.post("/profile/code", json={"code": code}).json() == {"accepted": False}
 
         assert client.get("/mock/state").json()["voters"] == {}
 
     def test_spaces_around_code_ignored(self, client):
-        assert client.post("/profile/code", json={"code": "  RLL2026 "}).json() == {"accepted": True}
+        assert client.post("/profile/code", json={"code": "  TEST2026 "}).json() == {"accepted": True}
 
     def test_other_voters_not_vip(self, client):
-        client.post("/profile/code", json={"code": "RLL2026"})
+        client.post("/profile/code", json={"code": "TEST2026"})
         other = new_voter()
         other.put("/hints", json=[vote_item("mock://hint/1", 1)])
 
         assert pool_votes(client, "mock://hint/1")[0]["vip"] is False
+
+    def test_nothing_accepted_without_a_code_set(self, client, monkeypatch):
+        monkeypatch.setattr(voters_module, "VIP_CODE", "")
+        for code in ["", "TEST2026"]:
+            assert client.post("/profile/code", json={"code": code}).json() == {"accepted": False}

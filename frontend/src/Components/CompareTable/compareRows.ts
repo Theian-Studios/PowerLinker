@@ -414,11 +414,14 @@ const MAX_MOTHER_AGE = 50;
 /**
  * Checks a family member on the record against the tree person's lifetime. A son born when the
  * tree person was 8, or after they died, is a clue that doesn't show up fact by fact.
+ * A relative only the tree side lists is checked against the record's person with swapSides set, so the
+ * relative's facts go in the tree column and the person's in the record column.
  * @param member - The family member on the record.
  * @param treeFocus - The tree person the record would be attached to.
+ * @param swapSides - Whether the member is a tree-side relative checked against the record's person.
  * @returns A "Timeline" row for each problem found; usually none.
  */
-export function familyTimelineRows(member: Person, treeFocus: Person | undefined): CompareRow[] {
+export function familyTimelineRows(member: Person, treeFocus: Person | undefined, swapSides: boolean = false): CompareRow[] {
   if (!treeFocus) return [];
   const memberBorn = lifeYears(member).born;
   const { born, died } = lifeYears(treeFocus);
@@ -453,8 +456,8 @@ export function familyTimelineRows(member: Person, treeFocus: Person | undefined
   return problems.map(({ tree, reason }) => ({
     label: "Timeline",
     kind: "date",
-    record: `Born ${memberBorn}`,
-    tree,
+    record: swapSides ? tree : `Born ${memberBorn}`,
+    tree: swapSides ? `Born ${memberBorn}` : tree,
     status: "bad",
     reason,
   }));

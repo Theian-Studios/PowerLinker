@@ -60,11 +60,13 @@ export async function asyncUseHintList<T = unknown>(
     record_type: recordType,
     last_insert_time: lastInsertTime,
     count,
+    // On the public site, a volunteer with no saved place starts at a random hint the Sheet picks
+    ...(usingSheets && lastInsertTime < 0 ? { start: "random" } : {}),
   });
   const response = await fetch(getLambdaURL(path), {
     method: "GET",
     credentials: getLambdaCredentials(),
-    signal: AbortSignal.timeout(HINTS_TIMEOUT_MS),
+    signal: timeoutSignal(HINTS_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -80,7 +82,7 @@ export async function asyncUseHintList<T = unknown>(
   const response2 = await fetch(getLambdaURL(hintsUrl({ dummy: true, record_type: recordType })), {
     method: "GET",
     credentials: getLambdaCredentials(),
-    signal: AbortSignal.timeout(HINTS_TIMEOUT_MS),
+    signal: timeoutSignal(HINTS_TIMEOUT_MS),
   });
 
   if (!response2.ok) {
@@ -88,7 +90,23 @@ export async function asyncUseHintList<T = unknown>(
   }
 
   const data2 = await response2.json();
-  return { data: [...data, data2] as T };
+  // The check hint goes at a random spot in the page, so it isn't always every 11th hint
+  const hints = Array.isArray(data) ? [...data] : [data];
+  hints.splice(Math.floor(Math.random() * (hints.length + 1)), 0, data2);
+  return { data: hints as T };
+}
+
+/**
+ * Gets a signal that aborts a request after a while. AbortSignal.timeout is missing on older phones
+ * (Safari before iOS 16), so this falls back to a timer.
+ * @param {number} ms - How long to wait before giving up.
+ * @returns {AbortSignal} A signal for fetch that fires after that long.
+ */
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
 }
 
 /**

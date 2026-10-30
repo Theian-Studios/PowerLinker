@@ -29,6 +29,11 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      # Without the script's address the site would call a local server and show no hints
+      - name: Check the Sheets address is set
+        run: test -n "$SHEETS_URL" || { echo "Set the SHEETS_URL repository variable (see sheets/README.md)"; exit 1; }
+        env:
+          SHEETS_URL: ${{ vars.SHEETS_URL }}
       - run: npm ci
       - run: npx tsc
       # SHEETS_URL is a repository variable: the Apps Script web app address (see sheets/README.md)
