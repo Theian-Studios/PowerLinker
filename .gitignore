@@ -1,0 +1,93 @@
+# ---BACKEND---
+# Byte-compiled / optimized / DLL files
+backend/*.py[cod]
+backend/*$py.class
+
+# Distribution / packaging
+backend/.Python
+backend/.cache
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Environments
+**/.env
+.venv
+venv
+backend/env/
+backend/venv/
+backend/ENV/
+backend/env.bak/
+backend/venv.bak/
+Auditor/AuditorVenv
+backend/BackendVenv
+
+# Real hints copied from the dev site for local testing (real people's records)
+backend/mock/live_hints.json
+backend/mock/duplicate_hints.json
+# Hints for the Google Sheet, made from the lab's data (real people's records)
+sheets/*.local.csv
+
+# ---FRONTEND---
+# dependencies
+node_modules/
+/frontend/node_modules
+/frontend/.pnp
+/frontend/.pnp.js
+/frontend/dist
+/frontend/dist-ssr
+/frontend/*.local
+/frontend/src/Services/name-comparator/node_modules
+
+#python
+**/*.pyc
+
+# configs 
+/frontend/src/config.ts
+
+# testing
+/frontend/coverage
+
+# production
+/frontend/build
+
+# logs
+/frontend/logs
+/frontend/*.log
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+/frontend/pnpm-debug.log*
+/frontend/lerna-debug.log*
+
+# ---TERRAFORM---
+# Local .terraform directories
+**/.terraform/*
+**/.terraform.*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# ---MISC---
+**/.vs
+**/.vscode
+.vscode/*
+**/.DS_Store
+/*/.env.local
+/*/.env.development.local
+/*/.env.test.local
+/*/.env.production.local
+matches_for_powerlinker.csv
+.idea
+backend/powerlinker-env
+
+**/.pytest_cache
+
+.idea
+
+__pycache__
+.python-version
+uv.lock
+hotfix.sh

@@ -1,0 +1,13 @@
+{
+  "devDependencies": {
+    "@fortawesome/free-solid-svg-icons": "^6.6.0",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "@types/pako": "^2.0.4",
+    "eslint-plugin-jsdoc": "^50.5.0",
+    "framer-motion": "^12.0.0-alpha.0",
+    "react-icons": "^5.5.0"
+  },
+  "dependencies": {
+    "pako": "^2.1.0"
+  }
+}

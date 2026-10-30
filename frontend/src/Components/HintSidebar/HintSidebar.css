@@ -1,0 +1,288 @@
+/* Desktop sidebar beside the comparison; scrolls with the page. Hidden below 1100px. */
+.hint-sidebar {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (min-width: 1100px) {
+    .hint-sidebar {
+        display: flex;
+    }
+}
+
+.evidence-more {
+    padding: 0;
+}
+
+.evidence-toggle {
+    min-width: 0;
+    width: 100%;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    box-shadow: none;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--pl-ink);
+    text-align: left;
+    cursor: pointer;
+}
+.evidence-toggle:hover {
+    background: var(--pl-surface-alt);
+    color: var(--pl-muted);
+}
+.evidence-toggle:focus-visible {
+    outline: 2px solid var(--pl-muted);
+    outline-offset: 2px;
+}
+
+.side-card {
+    background: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: 16px;
+    padding: 16px 18px;
+}
+
+.side-title {
+    margin: 0 0 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--pl-muted);
+}
+
+.side-note {
+    font-size: 0.92rem;
+    color: var(--pl-muted);
+}
+
+/* Evidence */
+.evidence-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.evidence-count {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.evidence-count--ok { background: var(--pl-ok-bg); color: var(--pl-ok); }
+.evidence-count--close { background: var(--pl-close-bg); color: var(--pl-close); }
+.evidence-count--bad { background: var(--pl-bad-bg); color: var(--pl-bad); }
+
+.evidence-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Each issue: status icon (same as the tables), then what, why, and the two values */
+.evidence-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+.evidence-item--bad {
+    background: var(--pl-bad-wash);
+}
+.evidence-item--close {
+    background: var(--pl-close-wash);
+}
+
+.evidence-icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+.evidence-item--bad .evidence-icon {
+    background: var(--pl-bad-bg);
+    color: var(--pl-bad);
+}
+.evidence-item--close .evidence-icon {
+    background: var(--pl-close-bg);
+    color: var(--pl-close);
+}
+
+.evidence-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.evidence-what {
+    font-weight: 700;
+    color: var(--pl-ink);
+}
+
+.evidence-reason {
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+.evidence-item--bad .evidence-reason { color: var(--pl-bad); }
+.evidence-item--close .evidence-reason { color: var(--pl-close); }
+
+.evidence-values {
+    font-size: 0.84rem;
+    color: var(--pl-muted);
+    overflow-wrap: anywhere;
+}
+
+/* "vs" between the record and tree values */
+.evidence-vs {
+    color: var(--pl-faint);
+}
+
+/* How to decide */
+.help .side-title {
+    margin-bottom: 0;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.help .side-title::-webkit-details-marker {
+    display: none;
+}
+.help .side-title::after {
+    content: "▾";
+    font-size: 0.9rem;
+    transition: transform 0.15s;
+}
+/* Points down when closed (open it), up when open (close it), like Show more / Show fewer */
+.help[open] .side-title::after {
+    transform: rotate(180deg);
+}
+
+.help-list {
+    margin-top: 12px;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--pl-ink);
+}
+.help-list b {
+    font-weight: 700;
+}
+
+/* Session progress */
+.progress-body {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.progress-ring {
+    flex: none;
+    width: 76px;
+    height: 76px;
+}
+.progress-ring-track,
+.progress-ring-fill {
+    fill: none;
+    stroke-width: 7;
+}
+.progress-ring-track {
+    stroke: var(--pl-border);
+}
+.progress-ring-fill {
+    stroke: var(--pl-olive-light);
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 38px 38px;
+    transition: stroke-dashoffset 0.4s ease;
+}
+.progress-ring-count {
+    text-anchor: middle;
+    font-size: 20px;
+    font-weight: 800;
+    fill: var(--pl-ink);
+    font-variant-numeric: tabular-nums;
+}
+.progress-ring-goal {
+    text-anchor: middle;
+    font-size: 10px;
+    fill: var(--pl-muted);
+}
+
+.progress-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.progress-headline {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--pl-ink);
+}
+.progress-sub {
+    font-size: 0.84rem;
+    color: var(--pl-muted);
+    line-height: 1.35;
+}
+
+/* No gap under the counts when there are no issues listed */
+.evidence-counts:last-child {
+    margin-bottom: 0;
+}
+
+/* Flat sidebar: sections sit on the page, separated by thin dividers instead of boxed cards */
+.hint-sidebar {
+    gap: 0;
+}
+.side-card {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 18px 2px;
+}
+.side-card + .side-card {
+    border-top: 1px solid var(--pl-border);
+}
+.hint-sidebar > .side-card:first-child {
+    padding-top: 4px;
+}
+
+/* Evidence issues as plain rows with their icon, not tinted boxes */
+.evidence-list {
+    gap: 12px;
+}
+.evidence-item,
+.evidence-item--bad,
+.evidence-item--close {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+.evidence-toggle {
+    padding: 4px 0 0 32px;
+}
+.evidence-toggle:hover {
+    background: none;
+    text-decoration: underline;
+}

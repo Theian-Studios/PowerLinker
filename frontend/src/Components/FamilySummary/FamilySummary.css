@@ -1,0 +1,117 @@
+/* Family under the main person, in a card like the tables */
+.family {
+    margin: 4px 0 18px;
+    background: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: 16px;
+    overflow: clip;
+}
+
+/* Header row matching the tables' gray header */
+.family-title {
+    margin: 0;
+    padding: 12px 14px;
+    background: var(--pl-surface-alt);
+    border-bottom: 1px solid var(--pl-border);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--pl-ink);
+}
+
+.family-body {
+    padding: 14px 14px 8px;
+}
+
+/* Full family tables sit inside the card */
+.family .compare:last-of-type {
+    margin-bottom: 4px;
+}
+
+@media (min-width: 1100px) {
+    .family-title,
+    .family-body {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+}
+
+.family-lines {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.family-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 0.95rem;
+    line-height: 1.35;
+    color: var(--pl-ink);
+}
+.family-line .status-icon {
+    flex: none;
+}
+/* "Not on tree" has no icon, so keep its text in line with the others */
+.family-line--none .status-icon {
+    visibility: hidden;
+}
+
+.family-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding-top: 2px;
+}
+.family-text b {
+    font-weight: 700;
+}
+
+.family-detail {
+    font-size: 0.88rem;
+    color: var(--pl-muted);
+    overflow-wrap: break-word;
+}
+.family-note {
+    color: var(--pl-muted);
+}
+.family-reason {
+    font-weight: 600;
+}
+.family-reason--bad { color: var(--pl-bad); }
+.family-reason--close { color: var(--pl-close); }
+.family-values {
+    color: var(--pl-muted);
+}
+.family-vs {
+    color: var(--pl-faint);
+}
+
+.family-toggle {
+    display: block;
+    min-width: 0;
+    margin: 14px auto 0;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    box-shadow: none;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--pl-ink);
+    cursor: pointer;
+}
+.family-toggle:hover {
+    background: none;
+    color: var(--pl-ink);
+    text-decoration: underline;
+}
+.family-toggle:focus-visible {
+    outline: 2px solid var(--pl-muted);
+    outline-offset: 2px;
+    border-radius: 6px;
+}

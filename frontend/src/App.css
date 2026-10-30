@@ -1,0 +1,295 @@
+@import url("https://fonts.googleapis.com/css?family=Open+Sans:400,600&display=swap");
+
+#root {
+  /* Color pallate */
+  --green-1: hsl(74, 60%, 04%);
+  --green-2: hsl(74, 60%, 14%);
+  --green-3: hsl(74, 60%, 24%);
+  --green-4: hsl(74, 60%, 34%); /* base */
+  --green-5: hsl(74, 60%, 44%);
+  --green-6: hsl(74, 60%, 54%);
+  --green-7: hsl(74, 60%, 64%);
+  --green-8: hsl(74, 60%, 74%);
+  --green-9: hsl(74, 60%, 84%);
+  --green-10: hsl(74, 60%, 94%);
+
+  --red-1: hsl(2, 67%, 06%);
+  --red-2: hsl(2, 67%, 16%);
+  --red-3: hsl(2, 67%, 26%);
+  --red-4: hsl(2, 67%, 36%);
+  --red-5: hsl(2, 67%, 46%); /* base */
+  --red-6: hsl(2, 67%, 56%);
+  --red-7: hsl(2, 67%, 66%);
+  --red-8: hsl(2, 67%, 76%);
+  --red-9: hsl(2, 67%, 86%);
+  --red-10: hsl(2, 67%, 96%);
+
+  --yellow-1: hsl(48, 100%, 04%);
+  --yellow-2: hsl(48, 100%, 14%);
+  --yellow-3: hsl(48, 100%, 24%);
+  --yellow-4: hsl(48, 100%, 34%);
+  --yellow-5: hsl(48, 100%, 44%);
+  --yellow-6: hsl(48, 100%, 54%);  
+  --yellow-7: hsl(48, 100%, 64%); /* base */
+  --yellow-8: hsl(48, 100%, 74%);
+  --yellow-9: hsl(48, 100%, 84%);
+  --yellow-10: hsl(48, 100%, 94%);
+
+  --black: hsl(0, 0%, 00%);
+  --gray-1: hsl(0, 0%, 10%);
+  --gray-2: hsl(0, 0%, 20%);
+  --gray-3: hsl(0, 0%, 30%);
+  --gray-4: hsl(0, 0%, 40%);
+  --gray-5: hsl(0, 0%, 50%);
+  --gray-6: hsl(0, 0%, 60%);
+  --gray-7: hsl(0, 0%, 70%);
+  --gray-8: hsl(0, 0%, 80%);
+  --gray-9: hsl(0, 0%, 90%);
+  --white: hsl(0, 0%, 100%);
+
+  /* Color system */
+  --light-text: white;
+  --dark-text: rgb(81, 80, 80);
+  --med-dark-text: var(--gray-5);
+  --med-light-text: var(--gray-3);
+
+  --color-accent: var(--green-4);
+  --color-accent-light: var(--green-5);
+  --color-accent-lighter: var(--green-6);
+  --color-accent-lightest: var(--green-8);
+  --color-accent-dark: var(--green-3);
+  --color-accent-darker: var(--green-2);
+  --color-accent-darkest: var(--green-1);
+
+  --color-danger: var(--red-6);
+  --color-danger-light: var(--red-7);
+  --color-danger-lighter: var(--red-9);
+  --color-danger-dark: var(--red-5);
+
+  --color-almost: var(--yellow-7);
+  --color-almost-light: var(--yellow-8);
+  --color-almost-lighter: var(--yellow-9);
+  --color-almost-dark: var(--yellow-5);
+
+  /* Interactive controls (buttons, links, toggles) share one slate gray; olive green stays the brand color */
+  --color-action: #475569;
+  --color-action-light: #94a3b8;
+  --color-action-lightest: #f1f5f9;
+  /* Neutral structure: card borders and dividers */
+  --color-border: hsl(220, 13%, 90%);
+  --color-surface-muted: hsl(210, 20%, 98%);
+
+
+
+  --color-disabled: var(--gray-5);
+  --color-disabled-light: var(--gray-7);
+  --color-disabled-dark: var(--gray-3);
+
+  /* Sex Colors */
+  --color-sex-female: hsl(341, 73%, 51%);
+  --color-sex-male: hsl(192, 99%, 32%);
+  --color-sex-undetermined: hsl(180, 1%, 62%);
+
+  /* Shadow system */
+  --shadow-distance-1: 3px;
+  --shadow-distance-2: 6px;
+  --shadow-distance-3: 9px;
+  --shadow-1: 0 var(--shadow-distance-1) var(--shadow-distance-1) 0
+  var(--gray-6);
+  --filter-shadow-1: drop-shadow(
+          0 var(--shadow-distance-1) var(--shadow-distance-1) var(--gray-6)
+  );
+  --shadow-2: 0 var(--shadow-distance-2) var(--shadow-distance-2) 0
+  var(--gray-6);
+  --filter-shadow-2: drop-shadow(
+          0 var(--shadow-distance-2) var(--shadow-distance-2) var(--gray-6)
+  );
+  --shadow-3: 0 var(--shadow-distance-3) var(--shadow-distance-3) 0
+  var(--gray-6);
+  --filter-shadow-3: drop-shadow(
+          0 var(--shadow-distance-3) var(--shadow-distance-3) var(--gray-6)
+  );
+
+  /* Old variables, probably remove later */
+  --color-white: white;
+  --color-text: var(--dark-text);
+  --color-primary: #e0e8e8;
+  --color-secondary-light: var(--color-accent-lightest);
+  --color-secondary-dark: hsl(137, 3%, 46%);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Open Sans", sans-serif,
+  "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+  "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.body {
+  width: 100%;
+  background-color: var(--color-primary);
+}
+
+h1,
+h2 {
+  color: var(--color-text);
+}
+
+a {
+  text-decoration: none;
+  color: var(--color-accent);
+}
+
+a:hover:not(:disabled) {
+  color: var(--color-white);
+}
+
+button {
+  border: none;
+  /* border-radius: 0.375em; */
+  box-shadow: var(--shadow-1);
+  min-width: 7.75em;
+  padding: 0.5em 1em;
+
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:where(.reset) {
+  background-color: unset;
+  box-shadow: unset;
+  padding: unset;
+  min-width: unset;
+}
+
+button.primary {
+  background-color: var(--color-accent-light);
+  color: var(--light-text);
+}
+
+button.primary:disabled {
+  background-color: var(--color-disabled);
+}
+
+button.primary:hover:not(:disabled) {
+  background-color: var(--color-accent-lighter);
+}
+
+button.nonMatch {
+  background-color: var(--color-danger);
+  color: var(--light-text);
+}
+
+button.nonMatch:disabled {
+  background-color: var(--color-disabled);
+}
+
+button.nonMatch:hover:not(:disabled) {
+  background-color: var(--color-danger-light);
+}
+
+button.secondary {
+  background-color: var(--color-accent-lightest);
+  color: var(--dark-text);
+}
+
+button.secondary:disabled {
+  background-color: var(--color-disabled-light);
+}
+
+button.secondary:hover:not(:disabled) {
+  background-color: var(--color-accent-lighter);
+}
+
+button.outlined,
+button.danger.outlined {
+  background-color: inherit;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: none;
+}
+
+button.outlined:disabled {
+  --color-accent: var(--color-disabled);
+}
+
+button.outlined:hover:not(:disabled) {
+  background-color: var(--color-accent-lightest);
+}
+
+button.danger {
+  background-color: var(--color-danger);
+  color: var(--light-text);
+}
+
+button.danger:disabled {
+  background-color: var(--color-danger-lighter);
+  color: var(--color-disabled);
+}
+
+button.danger:hover:not(:disabled) {
+  background-color: var(--color-danger-light);
+}
+
+button.danger.outlined {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+button.danger.outlined:disabled {
+  border-color: var(--color-danger-lighter);
+  background-color: transparent;
+  color: var(--color-danger-lighter);
+}
+
+button.danger.outlined:hover:not(:disabled) {
+  background-color: var(--color-danger-lighter);
+}
+
+.person-icon {
+  aspect-ratio: 1 / 1;
+  border-radius: 100vmax;
+}
+
+/* PowerLinker theme: warm off-white, olive green and soft neutrals, in the spirit of family-history sites */
+:root {
+  --pl-bg: #ffffff;
+  /* The top bar is a light neutral gray so it reads as separate from the white page */
+  --pl-header: #f6f6f4;
+  --pl-header-border: #e6e5df;
+  --pl-surface: #ffffff;
+  --pl-surface-alt: #f4f3ee;
+  --pl-border: #e5e3db;
+  --pl-ink: #262624;
+  --pl-muted: #75736b;
+  --pl-faint: #a8a69d;
+
+  --pl-olive: #5f7a22;
+  --pl-olive-dark: #4d6419;
+  --pl-olive-light: #8aa93a;
+
+  --pl-ok: #4f7a17;
+  --pl-ok-bg: #e4eed3;
+  --pl-close: #9a6a00;
+  --pl-close-bg: #f8ebc2;
+  --pl-close-wash: #fcf6e3;
+  --pl-bad: #a2402f;
+  --pl-bad-bg: #f5ddd7;
+  --pl-bad-wash: #fbf0ed;
+  --pl-none: #8d8b83;
+  --pl-none-bg: #ebeae4;
+
+  --pl-gray-btn: #5e5c55;
+  --pl-gray-btn-border: #cfccc2;
+}
+
+body {
+  background: var(--pl-bg);
+  color: var(--pl-ink);
+}

@@ -1,0 +1,253 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Header on top, the page fills the rest of the screen */
+.layout-container {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+    background: var(--pl-bg);
+}
+
+/* Header: brand on top, thin progress bar with the count underneath */
+/* Relative so the profile button can sit in the top-right corner */
+.site-header {
+    position: relative;
+    flex: none;
+    width: 100%;
+    background: var(--pl-header);
+    border-bottom: 1px solid var(--pl-header-border);
+    padding: 14px 16px 12px;
+}
+
+/* The count slides up to its new number */
+.count-num {
+    display: inline-block;
+}
+.count-num.is-new {
+    animation: count-up 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+    color: var(--pl-olive-dark);
+    font-weight: 700;
+}
+@keyframes count-up {
+    0% { transform: translateY(70%); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .count-num.is-new {
+        animation: none;
+    }
+}
+
+.header-content {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+}
+
+/* Lab name in small text under the title; centered on phones */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+}
+
+.brand-icon {
+    display: none;
+    width: 34px;
+    height: 34px;
+    flex: none;
+}
+
+/* Desktop: logo, then title and lab name, on the left like a normal site header */
+@media screen and (min-width: 601px) {
+    /* Full page width: logo at the page's left edge, count at the right edge */
+    .site-header {
+        padding: 20px 24px 10px;
+    }
+    .header-content {
+        max-width: none;
+        justify-content: flex-start;
+    }
+    .site-header .progress-row {
+        max-width: none;
+    }
+    .brand-icon {
+        display: block;
+    }
+    .brand-text {
+        align-items: flex-start;
+        text-align: left;
+    }
+}
+
+.site-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--pl-ink);
+    line-height: 1;
+}
+
+.brand-lab {
+    font-size: 0.72rem;
+    color: var(--pl-muted);
+    white-space: nowrap;
+}
+
+.progress-row {
+    max-width: 640px;
+    margin: 6px auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Points on the left, streak count on the right */
+.progress-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.points-count {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--pl-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Celebration card at 25 in a row; shares the centered popup with the reset message */
+.streak-reward .reward-burst {
+    font-size: 2.6rem;
+    line-height: 1;
+    margin-bottom: 8px;
+    animation: reward-pop 0.4s ease-out;
+}
+.reward-title {
+    margin-bottom: 4px;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--pl-olive-dark);
+}
+.reward-continue {
+    margin-top: 14px;
+    min-width: 0;
+    width: 100%;
+    padding: 11px 0;
+    border: none;
+    border-radius: 12px;
+    background: #6d8a2a;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.reward-continue:hover {
+    background: var(--pl-olive);
+}
+@keyframes reward-pop {
+    0% { transform: scale(0.4); opacity: 0; }
+    70% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+/* Streak-reset popup, centered over the page */
+.streak-lost-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(38, 38, 36, 0.25);
+    animation: streak-fade 0.15s ease-out;
+}
+.streak-lost {
+    max-width: 320px;
+    padding: 20px 22px;
+    border-radius: 18px;
+    background: var(--pl-surface);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    text-align: center;
+}
+.streak-lost-title {
+    margin-bottom: 6px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--pl-bad);
+}
+.streak-lost p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: var(--pl-ink);
+}
+@keyframes streak-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.progress-count {
+    align-self: flex-end;
+    font-size: 0.8rem;
+    line-height: 1;
+    color: var(--pl-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.progress-track {
+    height: 4px;
+    border-radius: 2px;
+    /* White track stands out on the sage top bar */
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--pl-olive-light);
+    transition: width 0.3s ease;
+}
+
+.main-content {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Wide desktop shows progress in the sidebar ring, so drop the header count and bar */
+@media screen and (min-width: 1100px) {
+    .progress-row {
+        display: none;
+    }
+    .site-header {
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+}

@@ -1,0 +1,7 @@
+{
+    "extends": "./tsconfig.json", // extend the root tsconfig if needed
+    "include": [
+        "src/**/*",
+        "vite.config.ts"  // Include the Vite config file explicitly
+    ]
+}

@@ -1,0 +1,405 @@
+/* Hint screen: scrolling comparison on top, answer bar pinned at the bottom */
+.document-matcher {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--pl-bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--pl-ink);
+}
+
+/* Holds the scrolling area and the floating "conflicts below" bubble */
+.matcher-scroll {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.matcher-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.conflicts-below {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    z-index: 5;
+    min-width: 0;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 999px;
+    background: var(--pl-bad);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(162, 64, 47, 0.3);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.conflicts-below:hover {
+    background: #8c3526;
+}
+.conflicts-below:focus-visible {
+    outline: 2px solid var(--pl-bad);
+    outline-offset: 3px;
+}
+
+.matcher-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 18px 16px 24px;
+}
+
+/* The question being asked */
+.question {
+    margin: 0 0 6px;
+    font-size: 1.4rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    color: var(--pl-ink);
+}
+/* The name stands out; the rest of the question is lighter */
+.question-name {
+    font-weight: 800;
+}
+@media (max-width: 420px) {
+    .question {
+        font-size: 1.25rem;
+    }
+}
+
+/* Hint type and the link to the source, kept quiet under the question */
+.hint-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.hint-type-select {
+    appearance: none;
+    -webkit-appearance: none;
+    min-width: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2375736b' stroke-width='1.5'/></svg>") no-repeat right center;
+    padding: 2px 16px 2px 0;
+    font: inherit;
+    font-size: 0.88rem;
+    color: var(--pl-muted);
+    cursor: pointer;
+}
+
+/* Shown when the record summary is missing a vital fact, pointing to the original source */
+.source-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: -4px 0 14px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--pl-surface-alt);
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: var(--pl-ink);
+}
+.source-tip-icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border-radius: 50%;
+    border: 1.5px solid var(--pl-muted);
+    color: var(--pl-muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+    font-style: italic;
+    font-family: Georgia, serif;
+}
+/* Beats the global a:hover rule in App.css, which turns links white */
+.source-tip a.source-tip-link {
+    font-weight: 600;
+    color: var(--pl-ink);
+    white-space: nowrap;
+}
+.source-tip a.source-tip-link:hover:not(:disabled) {
+    color: var(--pl-muted);
+    text-decoration: underline;
+}
+
+.check-source {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--pl-ink);
+    text-decoration: none;
+}
+/* Beats the global a:hover rule in App.css, which turns links white */
+.hint-meta a.check-source:hover:not(:disabled) {
+    color: var(--pl-muted);
+    text-decoration: underline;
+}
+
+/* Answer bar */
+.vote-bar {
+    flex: none;
+    background: var(--pl-bg);
+    border-top: 1px solid var(--pl-border);
+    padding: 12px 16px calc(10px + env(safe-area-inset-bottom));
+}
+
+.vote-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.vote-answers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.vote-btn {
+    min-width: 0;
+    padding: 15px 12px;
+    border-radius: 14px;
+    border: 1.5px solid transparent;
+    box-shadow: none;
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.vote-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+.vote-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Both answers are filled and the same size, so neither looks like the expected one: Different in gray, Same person in olive */
+.vote-btn--no,
+.vote-btn--yes {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #fff;
+}
+/* Lighter gray with dark text, which stays readable (white on a light gray would be too faint) */
+.vote-btn--no {
+    background: #d6d3ca;
+    color: var(--pl-ink);
+}
+.vote-btn--no:hover:not(:disabled) {
+    background: #c6c3b9;
+}
+/* A slightly lighter olive that still keeps white text readable */
+.vote-btn--yes {
+    background: #6d8a2a;
+}
+.vote-btn--yes:hover:not(:disabled) {
+    background: var(--pl-olive);
+}
+.vote-mark {
+    font-size: 0.95em;
+    font-weight: 800;
+    opacity: 0.85;
+}
+
+.vote-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+        "answers answers answers"
+        "back . unsure";
+    row-gap: 10px;
+    align-items: center;
+}
+.vote-row .vote-answers { grid-area: answers; }
+.vote-link--back { grid-area: back; justify-self: start; }
+.vote-link--unsure { grid-area: unsure; justify-self: end; }
+
+/* Desktop: Back, the two answers and Not sure share one row */
+@media (min-width: 601px) {
+    .vote-row {
+        grid-template-areas: "back answers unsure";
+        column-gap: 20px;
+    }
+}
+
+.vote-link {
+    min-width: 0;
+    padding: 4px 2px;
+    background: none;
+    border: none;
+    box-shadow: none;
+    font: inherit;
+    font-size: 0.92rem;
+    color: var(--pl-muted);
+    cursor: pointer;
+}
+.vote-link:hover:not(:disabled) {
+    color: var(--pl-ink);
+}
+.vote-link:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.vote-btn:focus-visible,
+.vote-link:focus-visible,
+.hint-type-select:focus-visible,
+.check-source:focus-visible {
+    outline: 2px solid var(--pl-muted);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+/* Slow-down message, above the answers */
+.slow-down-nudge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--pl-close-wash);
+    border: 1px solid var(--pl-close-bg);
+    font-size: 0.92rem;
+}
+.slow-down-nudge .dismiss-nudge {
+    flex: none;
+    min-width: 0;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 10px;
+    box-shadow: none;
+    background: var(--pl-ink);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* Check-hint warning, shown in place of the answers */
+.warning-popup {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.warning-popup p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+/* The Not sure prompt that offers the original record */
+.confirm-same {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.confirm-same p {
+    font-size: 0.98rem;
+    line-height: 1.4;
+    text-align: center;
+    color: var(--pl-ink);
+}
+.ask-source-lead {
+    font-weight: 700;
+}
+/* "Check source" in the Not sure prompt is a link styled as an answer button */
+.vote-answers a.vote-btn,
+.vote-answers a.vote-btn:hover {
+    text-decoration: none;
+    color: #fff;
+}
+
+/* Shown in place of a hint when loading failed or there are no hints left */
+.hint-status {
+    margin: 40px auto 0;
+    padding: 28px 22px;
+    text-align: center;
+    background: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: 16px;
+}
+.hint-status h3 {
+    margin: 0 0 6px;
+    font-size: 1.25rem;
+    color: var(--pl-ink);
+}
+.hint-status p {
+    margin: 0 0 18px;
+    color: var(--pl-muted);
+}
+.hint-status .hint-status-action {
+    min-width: 0;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 12px;
+    box-shadow: none;
+    background: var(--pl-ink);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.hint-status .hint-status-action:hover {
+    background: #000000;
+}
+
+.document-matcher .loader {
+    margin: auto;
+    width: fit-content;
+    padding-bottom: 2em;
+}
+
+@media (max-width: 420px) {
+    .question {
+        font-size: 1.45rem;
+    }
+}
+
+/* Wide desktop: comparison on the left, evidence and help in a sidebar on the right */
+
+@media (min-width: 1100px) {
+    .matcher-inner,
+    .vote-inner {
+        max-width: 1240px;
+        padding-left: 32px;
+        padding-right: 32px;
+    }
+    .matcher-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 32px;
+        align-items: start;
+    }
+    /* Answers stay centered on the page, at a comfortable width */
+    .vote-inner > * {
+        width: 100%;
+        max-width: 860px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    /* Center the bubble over the comparison column, not the whole page */
+    .conflicts-below {
+        left: calc(50% - 176px);
+    }
+}

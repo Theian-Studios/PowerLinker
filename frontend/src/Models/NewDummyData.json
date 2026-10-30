@@ -1,0 +1,510 @@
+[
+  {
+    "hintType": "record_attachment",
+    "recordInfo": {
+      "persons": [
+        {
+          "firstName" : "John",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "self",
+          "events": [
+            {
+              "name": "birth",
+              "date": "28 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Phil",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "son",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Dec 1810",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Mary",
+          "lastName" : "Brown",
+          "relationship" : "daughter",
+          "sex": "female",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        }
+      ],
+      "ark": "fake"
+    },
+    "treeInfo": {
+      "persons": [
+        {
+          "firstName" : "John",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "self",
+          "pid": "ABCD-123",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Phil",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "son",
+          "pid": "EFGH-456",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1810",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Mary",
+          "lastName" : "Brown",
+          "relationship" : "daughter",
+          "sex": "female",
+          "pid": "IJKL-789",
+          "events": [
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        }
+      ]
+    },
+    "origin": "Test Source"
+  },
+  {
+    "hintType": "record_attachment",
+    "recordInfo": {
+      "persons": [
+        {
+          "firstName" : "James",
+          "lastName" : "Green",
+          "sex": "male",
+          "relationship" : "self",
+          "events": [
+            {
+              "name": "birth",
+              "date": "28 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Phil",
+          "lastName" : "Green",
+          "sex": "male",
+          "relationship" : "son",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Dec 1810",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Mary",
+          "lastName" : "Green",
+          "relationship" : "daughter",
+          "sex": "female",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        }
+      ],
+      "ark": "fake"
+    },
+    "treeInfo": {
+      "persons": [
+        {
+          "firstName" : "James",
+          "lastName" : "Green",
+          "sex": "male",
+          "relationship" : "self",
+          "pid": "ABCD-123",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Phil",
+          "lastName" : "Green",
+          "sex": "male",
+          "relationship" : "son",
+          "pid": "EFGH-456",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1810",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Mary",
+          "lastName" : "Green",
+          "relationship" : "daughter",
+          "sex": "female",
+          "pid": "IJKL-789",
+          "events": [
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        }
+      ]
+    },
+    "origin": "Test Source"
+  },
+  {
+    "hintType": "record_attachment",
+    "recordInfo": {
+      "persons": [
+        {
+          "firstName" : "John",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "self",
+          "events": [
+            {
+              "name": "birth",
+              "date": "28 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Phil",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "son",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Dec 1810",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Mary",
+          "lastName" : "Brown",
+          "relationship" : "daughter",
+          "sex": "female",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        }
+      ],
+      "ark": "fake"
+    },
+    "treeInfo": {
+      "persons": [
+        {
+          "firstName" : "John",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "self",
+          "pid": "ABCD-123",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1787",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Phil",
+          "lastName" : "Brown",
+          "sex": "male",
+          "relationship" : "son",
+          "pid": "EFGH-456",
+          "events": [
+            {
+              "name": "birth",
+              "date": "26 Nov 1810",
+              "place": "Nebraska"
+            },
+            {
+              "name": "death",
+              "date": "28 Jan 1892",
+              "place": "New York"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        },
+        {
+          "firstName" : "Mary",
+          "lastName" : "Brown",
+          "relationship" : "daughter",
+          "sex": "female",
+          "pid": "IJKL-789",
+          "events": [
+            {
+              "name": "marriage",
+              "place" : "kansas",
+              "date" : "10 Mar 1799"
+            },
+            {
+              "name" : "residence",
+              "place": "Maine",
+              "date" : "1790"
+            }
+          ]
+        }
+      ]
+    },
+    "origin": "Test Source",
+    "expected": 1
+  }
+]

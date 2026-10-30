@@ -1,0 +1,7 @@
+**/tests/*
+Auditor/auditor/models/types.py
+backend/awsLambda/models/Hint.py
+Auditor/auditor/models/ParameterService.py
+backend/awsLambda/models/services/ParameterService.py
+backend/tempUpload.py
+backend/host_locally.py

@@ -1,0 +1,10 @@
+moto ~= 5.1.10
+pytest ~= 8.3.3
+pytest-asyncio ~= 1.1.0
+git+https://github.com/byuawsfhtl/TreeTapper.git@dev#egg=TreeTapper
+pytest-mock ~=3.15.1
+uvicorn ~= 0.49.0
+fastapi ~= 0.138.0
+boto3-stubs ~= 1.43.54
+audioop-lts ~= 0.2.0
+httpx ~= 0.28.1

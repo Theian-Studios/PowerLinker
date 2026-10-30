@@ -1,0 +1,25 @@
+.collapsible-outer {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    align-items: end;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-top: none;
+}
+
+/* No background, shadow or border of its own: the events box around it already provides one */
+.collapsible-outer.open {
+    grid-template-rows: 1fr;
+}
+
+.collapsible-inner {
+    overflow: hidden;
+    padding: 0;
+}
+
+.collapsible-outer.open .collapsible-inner {
+    padding: 0.2em 0.2em;
+}

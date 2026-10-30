@@ -1,0 +1,33 @@
+[project]
+name = "powerlinker"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13.12"
+dependencies = [
+    "asyncio~=4.0.0",
+    "awslambdaric==2.2.1",
+    "boto3~=1.35.26",
+    "flexibledate~=1.0.30",
+    "pandas~=2.2.3",
+    "pybugreporter~=1.0.11",
+]
+
+[dependency-groups]
+dev = [
+    "moto~=5.1.10",
+    "pytest>=8.3.5",
+    "pytest-asyncio~=1.1.0",
+    "pytest-mock~=3.15.1",
+    "treetapper",
+]
+
+[tool.uv.sources]
+treetapper = { git = "https://github.com/byuawsfhtl/TreeTapper.git", rev = "dev" }
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::DeprecationWarning:audioop",
+    "ignore::DeprecationWarning:discord"
+    ]

@@ -1,0 +1,269 @@
+{
+  "hintType":"Census",
+  "recordInfo":{
+    "focusPerson":{
+      "firstName" : "John",
+      "lastName": "Brown",
+      "relationship" : "self",
+      "sex": "male",
+      "events": [
+        {
+          "name": "birth",
+          "date": "26 Nov 1787",
+          "place": "Nebraska"
+        },
+        {
+          "name": "death",
+          "date": "27 Jan 1892",
+          "place": "New York"
+        },
+        {
+          "name": "marriage",
+          "place" : "kansas",
+          "date" : "10 Mar 1799"
+        },
+        {
+          "name" : "residence",
+          "place": "Maine",
+          "date" : "1890"
+        }
+      ]
+    },
+    "persons": [
+      {
+        "firstName" : "Marcus",
+        "lastName": "Brown",
+        "sex": "male",
+        "relationship" : "father",
+        "events": [
+          {
+            "name": "birth",
+            "date": "26 Nov 1759",
+            "place": "Wales, England"
+          },
+          {
+            "name": "death",
+            "date": "28 Jan 1842",
+            "place": "Nebraska"
+          }
+        ]
+      },
+      {
+        "firstName" : "Ame",
+        "lastName": "Smith",
+        "sex": "female",
+        "relationship" : "mother",
+        "events": [
+          {
+            "name": "birth",
+            "date": "28 June 1769",
+            "place": "France"
+          },
+          {
+            "name": "death",
+            "date": "29 Feb 1854",
+            "place": "Nebraska"
+          },
+          {
+            "name": "marriage",
+            "date": "10 April 1834",
+            "place": "Omaha, Nebraska"
+          }
+        ]
+      },
+      {
+        "firstName" : "Phil",
+        "lastName": "Brown",
+        "sex": "male",
+        "relationship" : "son",
+        "events": [
+          {
+            "name": "birth",
+            "date": "26 Nov 1810",
+            "place": "Nebraska"
+          },
+          {
+            "name": "death",
+            "date": "28 Jan 1892",
+            "place": "New York"
+          },
+          {
+            "name": "marriage",
+            "place" : "kansas",
+            "date" : "10 Mar 1799"
+          },
+          {
+            "name" : "residence",
+            "place": "Maine",
+            "date" : "1790"
+          }
+        ]
+      },
+      {
+        "firstName" : "Mary",
+        "lastName": "Brown",
+        "relationship" : "daughter",
+        "sex": "female",
+        "events": [
+          {
+            "name": "birth",
+            "date": "26 Nov 1787",
+            "place": "Nebraska"
+          },
+          {
+            "name": "death",
+            "date": "28 Jan 1892",
+            "place": "New York"
+          },
+          {
+            "name": "marriage",
+            "place" : "kansas",
+            "date" : "10 Mar 1799"
+          },
+          {
+            "name" : "residence",
+            "place": "Maine",
+            "date" : "1790"
+          }
+        ]
+      },
+      {
+        "firstName" : "Joanna",
+        "lastName": "Brown",
+        "relationship" : "daughter",
+        "sex": "female",
+        "events": [
+          {
+            "name": "birth",
+            "date": "25 Apr 1792",
+            "place": "Nebraska"
+          },
+          {
+            "name": "death",
+            "date": "1 Jan 1888",
+            "place": "New York"
+          },
+          {
+            "name" : "residence",
+            "place": "Delaware",
+            "date" : "1790"
+          }
+        ]
+      }
+    ]
+  },
+  "treeData" : {
+    "focusPerson": {
+      "firstName" : "John",
+      "lastName": "Brown",
+      "relationship" : "self",
+      "sex": "male",
+      "events": [
+        {
+          "name": "birth",
+          "date": "26 Nov 1787",
+          "place": "Nebraska"
+        },
+        {
+          "name": "death",
+          "date": "28 Jan 1892",
+          "place": "New York"
+        },
+        {
+          "name": "marriage",
+          "place" : "kansas",
+          "date" : "10 Mar 1799"
+        },
+        {
+          "name" : "residence",
+          "place": "Maine",
+          "date" : "1790"
+        }
+      ]
+    },
+    "persons": [
+      {
+        "firstName" : "Mark",
+        "lastName": "Brownmalimafasa",
+        "sex": "male",
+        "relationship" : "father",
+        "events": [
+          {
+            "name": "birth",
+            "date": "26 Nov 1759",
+            "place": "Wales, England"
+          },
+          {
+            "name": "death",
+            "date": "28 Jan 1842",
+            "place": "Nebraska"
+          }
+        ]
+      },
+      {
+        "firstName" : "Ame",
+        "lastName": "Smith",
+        "sex": "female",
+        "relationship" : "mother",
+        "events": [
+          {
+            "name": "birth",
+            "date": "28 June 1769",
+            "place": "France"
+          },
+          {
+            "name": "death",
+            "date": "29 Feb 1854",
+            "place": "Nebraska"
+          },
+          {
+            "name": "marriage",
+            "date": "10 April 1834",
+            "place": "Omaha, Nebraska"
+          }
+        ]
+      },
+      {
+        "firstName" : "Phil",
+        "lastName": "Brown",
+        "sex": "male",
+        "relationship" : "son",
+        "events": [
+          {
+            "name": "birth",
+            "date": "26 Nov 1810",
+            "place": "Nebraska"
+          },
+          {
+            "name": "death",
+            "date": "28 Jan 1892",
+            "place": "New York"
+          },
+          {
+            "name" : "residence",
+            "place": "Maine",
+            "date" : "1790"
+          }
+        ]
+      },
+      {
+        "firstName" : "Mary",
+        "lastName": "Brown",
+        "relationship" : "daughter",
+        "sex": "female",
+        "events": [
+          {
+            "name": "marriage",
+            "place" : "kansas",
+            "date" : "10 Mar 1799"
+          },
+          {
+            "name" : "residence",
+            "place": "Maine",
+            "date" : "1790"
+          }
+        ]
+      }
+    ]
+  }
+}
