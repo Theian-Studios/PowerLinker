@@ -34,10 +34,56 @@ export function voterId(): string {
   }
 }
 
+const NAME_KEY = "powerlinker.name";
+const NAME_ASKED_KEY = "powerlinker.nameAsked";
+/** Longest name kept; the Sheet's script cuts it to the same length. */
+export const MAX_NAME_LENGTH = 80;
+
+/**
+ * Gets the name this volunteer gave, which goes with each answer so the lab knows who did which records.
+ * @returns {string} The name, or "" when they haven't given one.
+ */
+export function volunteerName(): string {
+  try {
+    return localStorage.getItem(NAME_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Saves the volunteer's name, or clears it when blank, and stops the first-visit prompt from coming back.
+ * @param {string} name - The name they typed.
+ */
+export function saveVolunteerName(name: string): void {
+  try {
+    const trimmed = name.trim().slice(0, MAX_NAME_LENGTH);
+    if (trimmed) localStorage.setItem(NAME_KEY, trimmed);
+    else localStorage.removeItem(NAME_KEY);
+    localStorage.setItem(NAME_ASKED_KEY, "1");
+  } catch {
+    // Without storage the name can't be kept; answers still count without it
+  }
+}
+
+/**
+ * Whether to ask for a name on this visit: only on the public site, and only until they give one or skip.
+ * @returns {boolean} True the first time.
+ */
+export function shouldAskName(): boolean {
+  if (!usingSheets) return false;
+  try {
+    return !localStorage.getItem(NAME_KEY) && !localStorage.getItem(NAME_ASKED_KEY);
+  } catch {
+    // Storage is blocked, so a name couldn't be kept anyway
+    return false;
+  }
+}
+
 /**
  * Sends a request to the Sheet's script. It's sent as plain text so the browser skips the CORS
  * preflight, which Apps Script can't answer; the script reads it as JSON.
- * @param {Record<string, unknown>} body - The action and its data; the voter ID is added.
+ * @param {Record<string, unknown>} body - The action and its data; the voter ID and name are added.
  * @returns {Promise<unknown>} The script's JSON answer.
  */
 export async function sheetsPost(body: Record<string, unknown>): Promise<unknown> {
@@ -45,7 +91,7 @@ export async function sheetsPost(body: Record<string, unknown>): Promise<unknown
   const response = await fetch(SHEETS_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ ...body, voter: voterId() }),
+    body: JSON.stringify({ ...body, voter: voterId(), name: volunteerName() }),
   });
   if (!response.ok) throw new Error(`Sheets request failed: ${response.status}`);
   return response.json();
@@ -54,13 +100,13 @@ export async function sheetsPost(body: Record<string, unknown>): Promise<unknown
 /**
  * Sends a request to the Sheet's script as the page closes. The browser finishes a beacon after the page
  * is gone, though nothing can read the answer.
- * @param {Record<string, unknown>} body - The action and its data; the voter ID is added.
+ * @param {Record<string, unknown>} body - The action and its data; the voter ID and name are added.
  * @returns {boolean} Whether the browser accepted it for sending.
  */
 export function sheetsBeacon(body: Record<string, unknown>): boolean {
   if (!SHEETS_URL || typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") return false;
   try {
-    const data = new Blob([JSON.stringify({ ...body, voter: voterId() })], { type: "text/plain;charset=utf-8" });
+    const data = new Blob([JSON.stringify({ ...body, voter: voterId(), name: volunteerName() })], { type: "text/plain;charset=utf-8" });
     return navigator.sendBeacon(SHEETS_URL, data);
   } catch {
     return false;

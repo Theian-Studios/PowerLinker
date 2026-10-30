@@ -189,58 +189,50 @@
     font-weight: 700;
 }
 
-/* Session progress */
-.progress-body {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.progress-ring {
-    flex: none;
-    width: 76px;
-    height: 76px;
-}
-.progress-ring-track,
-.progress-ring-fill {
-    fill: none;
-    stroke-width: 7;
-}
-.progress-ring-track {
-    stroke: var(--pl-border);
-}
-.progress-ring-fill {
-    stroke: var(--pl-olive-light);
-    stroke-linecap: round;
-    transform: rotate(-90deg);
-    transform-origin: 38px 38px;
-    transition: stroke-dashoffset 0.4s ease;
-}
-.progress-ring-count {
-    text-anchor: middle;
-    font-size: 20px;
+/* Session progress: the points total big, then the in-a-row bar toward the next bonus */
+.points-total {
+    font-size: 2.6rem;
     font-weight: 800;
-    fill: var(--pl-ink);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--pl-ink);
     font-variant-numeric: tabular-nums;
 }
-.progress-ring-goal {
-    text-anchor: middle;
-    font-size: 10px;
-    fill: var(--pl-muted);
-}
-
-.progress-text {
+.streak-labels {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    font-size: 0.84rem;
+    color: var(--pl-muted);
 }
-.progress-headline {
-    font-size: 1.05rem;
-    font-weight: 800;
+.streak-labels b {
     color: var(--pl-ink);
 }
+.streak-bonus {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--pl-ok-bg);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--pl-olive-dark);
+}
+.streak-track {
+    height: 6px;
+    margin-top: 6px;
+    border-radius: 3px;
+    background: var(--pl-surface-alt);
+    overflow: hidden;
+}
+.streak-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--pl-olive-light);
+    transition: width 0.4s ease;
+}
 .progress-sub {
+    display: block;
+    margin-top: 8px;
     font-size: 0.84rem;
     color: var(--pl-muted);
     line-height: 1.35;

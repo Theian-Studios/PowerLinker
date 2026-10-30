@@ -14,6 +14,8 @@ export interface Context {
   streak: number;
   /** Points earned, 100 for each completed streak; kept between visits. */
   points: number;
+  /** Hints answered in this browser, all time; kept between visits. */
+  answered: number;
   /** Set when a streak was just completed, so the page can celebrate it. */
   justRewarded?: boolean;
   /** Whether the last answer added to the streak, so going back can undo exactly that. */
@@ -54,6 +56,7 @@ export async function getInitialContext() {
     strikes: readStrikes(),
     streak: readStored(STREAK_KEY),
     points: readStored(POINTS_KEY),
+    answered: readStored(ANSWERED_KEY),
   } as Context;
 }
 
@@ -85,6 +88,7 @@ export function saveStrikes(strikes: 0 | 1 | 2 | 3) {
   }
 }
 const POINTS_KEY = "powerlinker.points";
+const ANSWERED_KEY = "powerlinker.answered";
 
 /**
  * Reads a saved count from this browser.
@@ -97,6 +101,18 @@ function readStored(key: string): number {
     return Number.isFinite(value) && value > 0 ? value : 0;
   } catch {
     return 0;
+  }
+}
+
+/**
+ * Saves how many hints this browser has answered, all time.
+ * @param answered - Hints answered so far.
+ */
+export function saveAnswered(answered: number) {
+  try {
+    localStorage.setItem(ANSWERED_KEY, String(answered));
+  } catch {
+    // Remembering the total is only a convenience
   }
 }
 

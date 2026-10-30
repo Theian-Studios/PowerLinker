@@ -29,7 +29,10 @@ html, body {
     flex: none;
     width: 100%;
     background: var(--pl-header);
-    border-bottom: 1px solid var(--pl-header-border);
+    box-shadow: var(--pl-header-shadow);
+    /* Above the page, so the shadow falls on it and the Profile popup inside the header covers the sticky
+       table header */
+    z-index: 10;
     padding: 14px 16px 12px;
 }
 
@@ -60,7 +63,7 @@ html, body {
     justify-content: center;
 }
 
-/* Lab name in small text under the title; centered on phones */
+/* Logo, then the title with the lab name in small text under it; centered until the sidebar shows */
 .brand {
     display: flex;
     align-items: center;
@@ -70,37 +73,37 @@ html, body {
 .brand-text {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 3px;
-    text-align: center;
+    text-align: left;
 }
 
 .brand-icon {
-    display: none;
+    display: block;
     width: 34px;
     height: 34px;
     flex: none;
 }
 
-/* Desktop: logo, then title and lab name, on the left like a normal site header */
+/* Phones: just the title, centered, to save room */
+@media screen and (max-width: 600px) {
+    .brand-icon {
+        display: none;
+    }
+    .brand-text {
+        align-items: center;
+        text-align: center;
+    }
+}
+
+/* Tablets: the count and bar span the page width */
 @media screen and (min-width: 601px) {
-    /* Full page width: logo at the page's left edge, count at the right edge */
     .site-header {
         padding: 20px 24px 10px;
     }
-    .header-content {
-        max-width: none;
-        justify-content: flex-start;
-    }
+    .header-content,
     .site-header .progress-row {
         max-width: none;
-    }
-    .brand-icon {
-        display: block;
-    }
-    .brand-text {
-        align-items: flex-start;
-        text-align: left;
     }
 }
 
@@ -109,7 +112,7 @@ html, body {
     font-size: 1.2rem;
     font-weight: 800;
     letter-spacing: -0.01em;
-    color: var(--pl-ink);
+    color: var(--pl-olive-dark);
     line-height: 1;
 }
 
@@ -138,6 +141,13 @@ html, body {
     font-weight: 400;
     color: var(--pl-muted);
     font-variant-numeric: tabular-nums;
+}
+/* The points total is the number that stands out */
+.points-count b {
+    margin-right: 2px;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--pl-ink);
 }
 
 /* Celebration card at 25 in a row; shares the centered popup with the reset message */
@@ -219,16 +229,16 @@ html, body {
 }
 
 .progress-track {
-    height: 4px;
-    border-radius: 2px;
-    /* White track stands out on the sage top bar */
-    background: #ffffff;
+    height: 6px;
+    border-radius: 3px;
+    /* A light gray track on the white top bar */
+    background: var(--pl-surface-alt);
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
-    border-radius: 2px;
+    border-radius: 3px;
     background: var(--pl-olive-light);
     transition: width 0.3s ease;
 }
@@ -245,6 +255,10 @@ html, body {
 @media screen and (min-width: 1100px) {
     .progress-row {
         display: none;
+    }
+    /* With the sidebar beside the hint, the brand sits on the left like a normal site header */
+    .header-content {
+        justify-content: flex-start;
     }
     .site-header {
         padding-top: 14px;

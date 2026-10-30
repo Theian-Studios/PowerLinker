@@ -59,7 +59,7 @@
 .profile-panel {
     width: 100%;
     max-width: 340px;
-    padding: 18px 20px 20px;
+    padding: 20px;
     border-radius: 18px;
     background: var(--pl-surface);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
@@ -77,10 +77,17 @@
     font-weight: 800;
     color: var(--pl-ink);
 }
+/* The global button padding pushed the ✕ off-center; centered in its circle, and pulled out so the ✕ lines
+   up with the right edge of the content below */
 .profile-close {
+    display: grid;
+    place-items: center;
     width: 32px;
     height: 32px;
+    margin: -4px -8px -4px 0;
+    padding: 0;
     border: none;
+    line-height: 1;
     border-radius: 50%;
     background: transparent;
     color: var(--pl-muted);
@@ -89,6 +96,36 @@
 }
 .profile-close:hover {
     background: var(--pl-surface-alt);
+}
+
+/* All-time totals, as two tiles */
+.profile-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 0;
+}
+.profile-stat {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--pl-surface-alt);
+}
+.profile-stat dt {
+    font-size: 0.78rem;
+    color: var(--pl-muted);
+}
+.profile-stat dd {
+    margin: 2px 0 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--pl-ink);
+    font-variant-numeric: tabular-nums;
+}
+.profile-note {
+    margin: 6px 0 18px;
+    font-size: 0.78rem;
+    color: var(--pl-muted);
 }
 
 .profile-label {
@@ -114,10 +151,11 @@
     color: var(--pl-ink);
     background: var(--pl-surface);
 }
+/* The ring is drawn inside the border, so the field stays the Save button's height */
 .profile-input:focus {
-    outline: 2px solid var(--pl-olive-light);
-    outline-offset: 0;
-    border-color: transparent;
+    outline: none;
+    border-color: var(--pl-olive-light);
+    box-shadow: inset 0 0 0 1px var(--pl-olive-light);
 }
 .profile-save {
     padding: 9px 16px;
@@ -142,3 +180,22 @@
 .profile-message--accepted { color: var(--pl-ok); }
 .profile-message--rejected,
 .profile-message--error { color: var(--pl-bad); }
+
+/* First visit: a quiet way past the name question */
+.profile-skip {
+    display: block;
+    min-width: 0;
+    margin: 14px auto 0;
+    padding: 4px 8px;
+    border: none;
+    box-shadow: none;
+    background: none;
+    font: inherit;
+    font-size: 0.88rem;
+    color: var(--pl-muted);
+    cursor: pointer;
+}
+.profile-skip:hover {
+    color: var(--pl-ink);
+    text-decoration: underline;
+}

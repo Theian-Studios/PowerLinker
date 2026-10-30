@@ -15,6 +15,8 @@ export interface CompareRow {
   reason?: string;
   /** The column the reason sits under when it's about one side, like a missing given name. */
   reasonSide?: "record" | "tree";
+  /** Shows the reason under a matching row too, where it would otherwise only be a tooltip. */
+  showReason?: boolean;
 }
 
 /** Row labels for each event type: [date label, place label]. */
@@ -391,8 +393,22 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
   if (rows[0].reason === "Maybe a married name") {
     const married = hasSurname(spouseSurnames.tree, recordPerson.lastName) ? recordPerson.lastName
       : hasSurname(spouseSurnames.record, treePerson?.lastName) ? treePerson?.lastName : undefined;
-    if (married) rows[0] = { ...rows[0], reason: `Married name: spouse is a ${married.trim()}` };
+    // Explained, it's no longer a difference: the name matches, with the reason still shown
+    if (married) rows[0] = { ...rows[0], status: "ok", reason: `${married.trim()} is her married name`, showReason: true };
   }
+
+  // Most people stayed put between censuses, so a residence in the same town, not just the same county, is
+  // worth saying in the table
+  const residence = rows.findIndex((row) => row.label === "Residence" && row.status === "ok");
+  const town = residence >= 0 ? sameTown(rows[residence].record, rows[residence].tree) : undefined;
+  if (town) rows[residence] = { ...rows[residence], reason: `Same town: ${town}`, showReason: true };
+
+  // A full date (day, month and year) the same on both sides is rarely shared by chance, so it's said out loud
+  rows.forEach((row, i) => {
+    if ((row.label === "Born" || row.label === "Died") && row.status === "ok" && row.record && row.record === row.tree && /^\d{1,2} \S+ \d{4}$/.test(row.record)) {
+      rows[i] = { ...row, reason: "Exact same date", showReason: true };
+    }
+  });
 
   // A common name is only worth flagging when nothing else narrows it down: no family on the hint
   // (a whole matching family is strong evidence) and no exact birth date on both sides
@@ -461,4 +477,61 @@ export function familyTimelineRows(member: Person, treeFocus: Person | undefined
     status: "bad",
     reason,
   }));
+}
+
+/** Words that only say what kind of place a town is, so "Salem Township" and "Salem" are the same town. */
+const PLACE_KIND = /\s+(township|city|village|borough|town|twp\.?)$/;
+
+/**
+ * Finds the town two residences share, beyond the same county and state. Census places add wards and
+ * districts ("Area B, Schenectady, Schenectady City, ..."), so any town-level part in common counts.
+ * @param a - One residence, possibly with its year in front ("1930 · Salem, Wayne, Pennsylvania, United States").
+ * @param b - The other.
+ * @returns The shared town as written in the first, or undefined when they're in different towns or it can't be told.
+ */
+export function sameTown(a?: string, b?: string): string | undefined {
+  /**
+   * Splits a residence into its towns and the county and state it's in.
+   * @param place - The residence.
+   * @returns The lowercase towns with their original spelling, and the county and state.
+   */
+  const split = (place: string) => {
+    const parts = place.replace(/^\d{4} · /, "").split(",").map((part) => part.trim()).filter(Boolean);
+    // US places end with county, state and country; with fewer parts there's no town to compare
+    if (parts[parts.length - 1]?.toLowerCase() === "united states") parts.pop();
+    if (parts.length < 3) return undefined;
+    const region = parts.slice(-2).join(",").toLowerCase();
+    const towns = new Map(parts.slice(0, -2).map((part) => [part.toLowerCase().replace(PLACE_KIND, ""), part.replace(PLACE_KIND, "")]));
+    return { region, towns };
+  };
+  const first = a ? split(a) : undefined;
+  const second = b ? split(b) : undefined;
+  if (!first || !second || first.region !== second.region) return undefined;
+  for (const [key, town] of first.towns) if (second.towns.has(key)) return town;
+  return undefined;
+}
+
+/**
+ * Finds facts on one person that can't all be true: a census after their own death, before their own birth,
+ * or a death before their birth. Then one of their own facts is wrong, and a conflict it causes with the
+ * other person isn't evidence they're different people.
+ * @param person - One side's person.
+ * @returns A short description of each problem, like "died 23 May 1923, but in the 1940 census".
+ */
+export function selfConflicts(person?: Person): string[] {
+  if (!person) return [];
+  const life = lifeBounds(person);
+  const death = person.personEvents.find((event) => event.sanitizedType === "death" && event.yearRange());
+  const birth = person.personEvents.find((event) => event.sanitizedType === "birth" && event.yearRange());
+  const problems: string[] = [];
+  for (const census of person.personEvents.filter((event) => event.sanitizedType === "residence")) {
+    const year = census.date?.likelyYear;
+    const where = outside(census, life);
+    if (where === "After death" && death) problems.push(`died ${death.dateText}, but in the ${year} census`);
+    if (where === "Before birth" && birth) problems.push(`born ${birth.dateText}, but in the ${year} census`);
+  }
+  if (life.born !== undefined && life.died !== undefined && life.died < life.born - LIFETIME_SLACK && birth && death) {
+    problems.push(`died ${death.dateText}, before being born ${birth.dateText}`);
+  }
+  return problems;
 }

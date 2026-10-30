@@ -20,18 +20,48 @@
     color: var(--pl-ink);
 }
 
-.family-body {
-    padding: 14px 14px 8px;
+.family-lines {
+    padding: 14px 14px 0;
 }
 
-/* Full family tables sit inside the card */
-.family .compare:last-of-type {
-    margin-bottom: 4px;
+.family-footer {
+    padding: 0 14px 8px;
+}
+
+/* Expanded: one side-by-side table filling the card, its header row standing in for the card's title */
+.family-head-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--pl-ink);
+}
+.family-table + .family-footer {
+    border-top: 1px solid var(--pl-border);
+}
+
+/* Each relative's facts start with their relationship, like a section label inside the one table */
+.family-group {
+    padding: 9px 14px 8px;
+    border-top: 1px solid var(--pl-border);
+    border-bottom: 1px solid var(--pl-border);
+    /* A paler band than the header row, so each relative reads as its own section */
+    background: color-mix(in srgb, var(--pl-surface-alt) 55%, var(--pl-surface));
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--pl-muted);
+}
+.family-group + .compare-row {
+    border-top: none;
 }
 
 @media (min-width: 1100px) {
     .family-title,
-    .family-body {
+    .family-lines,
+    .family-footer,
+    .family-group {
         padding-left: 18px;
         padding-right: 18px;
     }
@@ -79,6 +109,10 @@
 .family-note {
     color: var(--pl-muted);
 }
+.family-relation {
+    font-weight: 400;
+    color: var(--pl-muted);
+}
 .family-reason {
     font-weight: 600;
 }
@@ -114,4 +148,12 @@
     outline: 2px solid var(--pl-muted);
     outline-offset: 2px;
     border-radius: 6px;
+}
+
+/* Phones: line the relationship labels up with the table's tighter rows */
+@media (max-width: 420px) {
+    .family-group {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
 }

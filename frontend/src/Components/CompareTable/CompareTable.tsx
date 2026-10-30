@@ -39,35 +39,51 @@ export default function CompareTable({ rows, heading, notOnTree, sides = ["Recor
           <span role="columnheader">{sides[1]}</span>
           <span role="columnheader" className="compare-status" aria-label="Match"></span>
         </div>
-        {rows.map((row, i) => {
-          return (
-          <div className={`compare-row compare-row--${row.status}${i === 0 ? " compare-row--name" : ""}`} role="row" key={row.label + i}>
-            <span className="compare-label" role="rowheader">{row.label}</span>
-            <span className="compare-value" role="cell">
-              {row.record ? row.record : <span className="compare-missing" aria-label="Not given">–</span>}
-            </span>
-            <span className="compare-value" role="cell">
-              {row.tree ? row.tree : (i === 0 && notOnTree
-                ? <span className="compare-missing">{sides[1] === "Tree" ? "not on tree" : "not listed"}</span>
-                : <span className="compare-missing" aria-label="Not given">–</span>)}
-            </span>
-            {/* Why a close or conflicting row is marked, right under the values: "1 year apart", "Different states" */}
-            {row.reason && (row.status === "close" || row.status === "bad") && (
-              <span className={`compare-reason compare-reason--${row.status}${row.reasonSide ? ` compare-reason--${row.reasonSide}` : ""}`}>{row.reason}</span>
-            )}
-            <span className="compare-status" role="cell">
-              <span
-                className={`status-icon status-icon--${row.status}`}
-                title={row.reason ? `${STATUS_ICON[row.status].label}: ${row.reason}` : STATUS_ICON[row.status].label}
-                aria-label={row.reason ? `${STATUS_ICON[row.status].label}: ${row.reason}` : STATUS_ICON[row.status].label}
-              >
-                {STATUS_ICON[row.status].symbol}
-              </span>
-            </span>
-          </div>
-          );
-        })}
+        {rows.map((row, i) => <CompareFact key={row.label + i} row={row} first={i === 0} notOnTree={notOnTree} sides={sides} />)}
       </div>
     </section>
+  );
+}
+
+/**
+ * CompareFact Component - One fact compared side by side, with its mark and the reason for it.
+ * @param props - Component props.
+ * @param props.row - The comparison row.
+ * @param props.first - True for a person's first row, their name.
+ * @param props.notOnTree - True when this person has no match on the other side.
+ * @param props.sides - Column headings, which decide how a missing match is worded.
+ * @returns {ReactElement} The row.
+ */
+export function CompareFact({ row, first, notOnTree, sides }: {
+  row: CompareRow;
+  first: boolean;
+  notOnTree: boolean;
+  sides: [string, string];
+}): ReactElement {
+  return (
+    <div className={`compare-row compare-row--${row.status}${first ? " compare-row--name" : ""}`} role="row">
+      <span className="compare-label" role="rowheader">{row.label}</span>
+      <span className="compare-value" role="cell">
+        {row.record ? row.record : <span className="compare-missing" aria-label="Not given">–</span>}
+      </span>
+      <span className="compare-value" role="cell">
+        {row.tree ? row.tree : (first && notOnTree
+          ? <span className="compare-missing">{sides[1] === "Tree" ? "not on tree" : "not listed"}</span>
+          : <span className="compare-missing" aria-label="Not given">–</span>)}
+      </span>
+      {/* Why a close or conflicting row is marked, right under the values: "1 year apart", "Different states" */}
+      {row.reason && (row.status === "close" || row.status === "bad" || row.showReason) && (
+        <span className={`compare-reason compare-reason--${row.status}${row.reasonSide ? ` compare-reason--${row.reasonSide}` : ""}`}>{row.reason}</span>
+      )}
+      <span className="compare-status" role="cell">
+        <span
+          className={`status-icon status-icon--${row.status}`}
+          title={row.reason ? `${STATUS_ICON[row.status].label}: ${row.reason}` : STATUS_ICON[row.status].label}
+          aria-label={row.reason ? `${STATUS_ICON[row.status].label}: ${row.reason}` : STATUS_ICON[row.status].label}
+        >
+          {STATUS_ICON[row.status].symbol}
+        </span>
+      </span>
+    </div>
   );
 }

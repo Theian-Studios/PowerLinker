@@ -14,7 +14,12 @@ export interface QueuedVote {
     seconds?: number;
     /** When the answer was given, as an ISO date; a retry can reach the backend much later. */
     answeredAt?: string;
+    /** Why the answer was "Not sure". */
+    unsure?: UnsureReason;
 }
+
+/** Why a volunteer chose "Not sure". */
+export type UnsureReason = "not_enough_info" | "facts_disagree" | "other";
 
 /** Most answers sent in one request; the Sheet's script takes up to 100. */
 const MAX_PER_REQUEST = 50;
@@ -44,6 +49,8 @@ export interface QueueItem {
     vote_id?: string;
     /** When the answer was given. */
     answered_at?: string;
+    /** Why the answer was "Not sure". */
+    unsure_reason?: UnsureReason;
 }
 
 /**
@@ -103,6 +110,8 @@ export default function useQueue(
         ...(vote.seconds !== undefined ? { seconds: vote.seconds } : {}),
         ...(usingSheets ? { vote_id: vote.id } : {}),
         ...(usingSheets && vote.answeredAt ? { answered_at: vote.answeredAt } : {}),
+        // Only the Sheet records why; the lab's API doesn't take these fields
+        ...(usingSheets && vote.unsure ? { unsure_reason: vote.unsure } : {}),
     }));
 
     /**

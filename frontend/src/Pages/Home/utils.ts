@@ -8,8 +8,8 @@ import {
 } from "react";
 import { v4 } from "uuid";
 import { Hint } from "../../Models/Hint.ts";
-import { QueuedVote } from "../../Hooks/useQueue.ts";
-import { Context, ContextState, nextProgress, saveProgress, saveStrikes } from "../../Models/Context.ts";
+import { QueuedVote, UnsureReason } from "../../Hooks/useQueue.ts";
+import { Context, ContextState, nextProgress, saveAnswered, saveProgress, saveStrikes } from "../../Models/Context.ts";
 import { asyncUseHintList } from "../../Hooks/useLambdaFetch.ts";
 import { getPersons } from "../../Services/getPersons.ts";
 import { saveCursor, usingSheets } from "../../Services/sheetsApi.ts";
@@ -136,9 +136,10 @@ export function useHomeHandlers({
      * Completes the current hint and moves it from the queue to the reviewed list.
      * @param {-1 | 0 | 1} vote - The vote for the current hint.
      * @param {boolean} likelyWrong - True for "Same person" despite strong conflicts, which resets the streak.
+     * @param {UnsureReason} unsure - Why the answer was "Not sure".
      */
     const submit = useCallback(
-        (vote: -1 | 0 | 1, likelyWrong: boolean = false) => {
+        (vote: -1 | 0 | 1, likelyWrong: boolean = false, unsure?: UnsureReason) => {
         const hint = context.hintQue[0];
         if (!hint) {
             console.error("No hint in queue");
@@ -166,6 +167,7 @@ export function useHomeHandlers({
                 vote,
                 seconds: (Date.now() - shownAt.current) / 1000,
                 answeredAt: new Date().toISOString(),
+                ...(vote === 0 && unsure ? { unsure } : {}),
             };
             // Re-answering after Back replaces the earlier vote if it hasn't been sent yet; once sent, both are
             // recorded and the later one is the final answer
@@ -177,7 +179,7 @@ export function useHomeHandlers({
             });
         }
 
-        const completed = { ...hint, complete: true, graded: hint.graded || Boolean(hint.dummy) };
+        const completed = { ...hint, complete: true, graded: hint.graded || Boolean(hint.dummy), answered: true };
         // A returning volunteer picks up after the furthest hint they've answered
         if (!hint.dummy) saveCursor(hint.insertTime);
         // Same person and Different extend the streak, Not sure doesn't, and a missed check hint resets it
@@ -189,9 +191,13 @@ export function useHomeHandlers({
                 ? (missedCheck ? "check" : "conflicts")
                 : undefined;
             saveProgress(progress.streak, progress.points);
+            // Each hint counts once toward the all-time total, even if it's answered again after Back
+            const answered = prev.answered + (hint.answered ? 0 : 1);
+            if (!hint.answered) saveAnswered(answered);
             return {
                 ...prev,
                 ...progress,
+                answered,
                 streakLost,
                 hintQue: prev.hintQue.slice(1),
                 reviewedHints: [...prev.reviewedHints, { ...completed, counted: Boolean(progress.lastCounted) }],

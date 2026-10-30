@@ -32,7 +32,7 @@ function readHelpOpen(): boolean {
 }
 
 /**
- * SessionProgress Component - A ring showing answers in a row toward the next points, plus the points total.
+ * SessionProgress Component - The points total, then a bar for answers in a row toward the next bonus.
  * @returns {ReactElement} The progress card.
  */
 function SessionProgress(): ReactElement {
@@ -40,33 +40,25 @@ function SessionProgress(): ReactElement {
   const done = context.streak;
   const progress = Math.min(1, done / STREAK_GOAL);
 
-  const radius = 30;
-  const circumference = 2 * Math.PI * radius;
-
   return (
     <section className="side-card progress-card">
-      <h2 className="side-title">In a row</h2>
-      <div className="progress-body">
-        <svg className="progress-ring" viewBox="0 0 76 76" role="img" aria-label={`${done} of ${STREAK_GOAL} in a row`}>
-          <circle className="progress-ring-track" cx="38" cy="38" r={radius} />
-          <circle
-            className="progress-ring-fill"
-            cx="38"
-            cy="38"
-            r={radius}
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - progress)}
-          />
-          <text x="38" y="37" className="progress-ring-count">{done}</text>
-          <text x="38" y="52" className="progress-ring-goal">of {STREAK_GOAL}</text>
-        </svg>
-        <div className="progress-text">
-          <span className="progress-headline">{context.points} points</span>
-          <span className="progress-sub">
-            {STREAK_GOAL - done} more in a row for +{STREAK_POINTS}. Missing a check hint starts the count over.
-          </span>
-        </div>
+      <h2 className="side-title">Points</h2>
+      <div className="points-total">{context.points}</div>
+      <div className="streak-labels">
+        <span><b>{done}</b> of {STREAK_GOAL} in a row</span>
+        <span className="streak-bonus">+{STREAK_POINTS}</span>
       </div>
+      <div
+        className="streak-track"
+        role="progressbar"
+        aria-label={`Answers in a row toward ${STREAK_POINTS} points`}
+        aria-valuemin={0}
+        aria-valuemax={STREAK_GOAL}
+        aria-valuenow={done}
+      >
+        <div className="streak-fill" style={{ width: `${progress * 100}%` }} />
+      </div>
+      <p className="progress-sub">Missing a check hint starts the count over.</p>
     </section>
   );
 }

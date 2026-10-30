@@ -6,19 +6,22 @@
  *   Hints   hint_id | hint (JSON)             pairs to vote on; each volunteer starts at a random row and
  *                                             goes on from there, wrapping back to the top at the end
  *   Checks  hint_id | expected | hint (JSON)  check hints with known answers (1 same, -1 different)
- *   Votes   one row per answer, added by this script
+ *   Votes   one row per answer, added by this script, with the name the volunteer gave
  *   Voters  one row per person who entered the VIP code
- *   Sessions  sessions ended after three missed check hints
+ *   Sessions  sessions ended after three missed check hints, with the voter and their name
  *
  * The VIP code lives in Project Settings → Script properties as VIP_CODE, never in this file,
  * since this file is public on GitHub. A standalone script also needs SHEET_ID there: the ID from
  * the Sheet's address. A script made from the Sheet's Extensions menu finds its Sheet without it.
  */
 
-const VOTE_HEADERS = ["time", "voter", "session", "hint_id", "check", "expected", "correct", "vote", "answer", "seconds", "vip", "person_1", "person_2", "vote_id", "answered_at"];
+const VOTE_HEADERS = ["time", "voter", "session", "hint_id", "check", "expected", "correct", "vote", "answer", "seconds", "vip", "person_1", "person_2", "vote_id", "answered_at", "unsure_reason", "name"];
 // How long a vote's ID is remembered so a resent copy isn't recorded twice (Apps Script's cache maximum)
 const SEEN_VOTE_SECONDS = 21600;
 const ANSWERS = { "1": "same", "-1": "different", "0": "not sure" };
+// Why a volunteer chose "Not sure"; anything else the app sends is left blank
+const UNSURE_REASONS = { not_enough_info: "not enough info", facts_disagree: "facts disagree", other: "other" };
+const MAX_NAME_LENGTH = 80;
 const MAX_COUNT = 25;
 
 /**
@@ -54,7 +57,8 @@ function doPost(e) {
     case "code":
       return json(checkCode(body));
     case "invalidate":
-      appendRows("Sessions", ["time", "session"], [[new Date(), String(body.sid || "")]]);
+      appendRows("Sessions", ["time", "session", "voter", "name"],
+        [[new Date(), String(body.sid || ""), String(body.voter || "").slice(0, 64), plainText(body.name, MAX_NAME_LENGTH)]]);
       return json({ ok: true });
     default:
       return json({ error: "Unknown action" });
@@ -117,6 +121,8 @@ function addVotes(body) {
   const voter = String(body.voter || "").slice(0, 64);
   const items = Array.isArray(body.items) ? body.items.slice(0, 100) : [];
   const vip = Boolean(voter) && cachedProperty(`vip:${voter}`) === "1";
+  // The name the volunteer gave, so the lab knows who did which records
+  const name = plainText(body.name, MAX_NAME_LENGTH);
   const rows = items.map((item) => {
     const vote = Number(item.vote && item.vote.vote);
     const isCheck = item.expected === 1 || item.expected === -1;
@@ -138,6 +144,8 @@ function addVotes(body) {
       String(item.vote_id || "").slice(0, 64),
       // When the volunteer answered; "time" is when the Sheet received it, which can be later after a retry
       answeredAt(item.answered_at),
+      vote === 0 ? UNSURE_REASONS[String(item.unsure_reason)] || "" : "",
+      name,
     ];
   });
   // The app may send an answer again when it didn't hear back in time; each answer's ID is recorded once
@@ -152,6 +160,18 @@ function addVotes(body) {
     if (Object.keys(remember).length) cache.putAll(remember, SEEN_VOTE_SECONDS);
     return { added: fresh.length, skipped: rows.length - fresh.length };
   });
+}
+
+/**
+ * Makes text a volunteer typed safe to write: trimmed, capped, and never read as a formula.
+ * @param {*} value - The text from the app.
+ * @param {number} maxLength - The most characters kept.
+ * @returns {string} Plain text, or blank.
+ */
+function plainText(value, maxLength) {
+  const text = typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+  // The Sheet treats text starting with these as a formula or number; a leading ' keeps it as text
+  return /^[=+\-@]/.test(text) ? `'${text}` : text;
 }
 
 /**
@@ -200,7 +220,13 @@ function appendRows(name, headers, rows) {
 function writeRows(name, headers, rows) {
   if (rows.length === 0) return;
   const sheet = tab(name, headers);
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+  const width = rows[0].length;
+  // A tab made before a column was added is too narrow; widen it and fill in the new headers
+  if (sheet.getMaxColumns() < width) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), width - sheet.getMaxColumns());
+    if (headers) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, width).setValues(rows);
 }
 
 /**

@@ -21,7 +21,8 @@ function ContextProvider({ children }: { children: ReactNode }) {
     reviewedHints: [],
     strikes: 0,
     streak: 0,
-    points: 0
+    points: 0,
+    answered: 0
   });
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import { usingSheets } from "../../Services/sheetsApi";
 import { useEffect, useMemo, useRef, useState, useContext } from "react";
 import CompareTable from "../CompareTable/CompareTable";
 import FamilySummary, { FamilyMember } from "../FamilySummary/FamilySummary";
-import { buildRows, familyTimelineRows } from "../CompareTable/compareRows";
+import { buildRows, familyTimelineRows, selfConflicts } from "../CompareTable/compareRows";
 import HintSidebar, { PersonRows } from "../HintSidebar/HintSidebar";
 import Match from "../../Models/Match";
 import { Loading } from "../Loading/Loading";
@@ -14,6 +14,7 @@ import { IPerson, Person } from "../../Models/Person.ts";
 import { sameGivenName } from "../../Services/highlightScoring.ts";
 import useSlowDownNudge from "../../Hooks/useSlowDownNudge.ts";
 import { haptic } from "../../Services/haptics.ts";
+import { UnsureReason } from "../../Hooks/useQueue.ts";
 
 /** Tree relationships a record relationship can match, since records are often less specific ("parent"). */
 const RELATIVE_KINDS: Partial<Record<Relationship, Relationship[]>> = {
@@ -84,6 +85,16 @@ const NEXT_HINT_PAUSE_MS = 350;
 const STRONG_CONFLICTS = 2;
 
 /**
+ * Joins names into a sentence: "spouse Anna and son Anthony", or the first two and how many more.
+ * @param names - The names, lowercase relationship first.
+ * @returns The joined names.
+ */
+function listNames(names: string[]): string {
+  const shown = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} others`] : names;
+  return shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}` : shown[0] ?? "";
+}
+
+/**
  * Builds the address of a person's page on the FamilySearch tree.
  * @param pid - Their tree person ID, like "LBY6-HSX".
  * @returns The page address, or undefined without an ID.
@@ -93,9 +104,18 @@ function treePageUrl(pid?: string): string | undefined {
 }
 
 /**
+ * A person's first given name and surname, without middle names.
+ * @param person - A person on the record or the tree.
+ * @returns The name, e.g. "Bertha Holcomb".
+ */
+function shortName(person: IPerson): string {
+  return [(person.firstName ?? "").trim().split(/\s+/)[0], (person.lastName ?? "").trim()].filter(Boolean).join(" ");
+}
+
+/**
  * DocumentMatcher Component - Main component contains the table and buttons for matching records and tree people.
  * @param {Object} props - Component props.
- * @param {(submit: -1 | 0 | 1, likelyWrong?: boolean) => void} props.submit - Function to call when submitting a match decision (-1 = not a match, 0 = skip, 1 = attach all); likelyWrong marks "Same person" despite strong conflicts.
+ * @param {(submit: -1 | 0 | 1, likelyWrong?: boolean, unsure?: UnsureReason) => void} props.submit - Function to call when submitting a match decision (-1 = not a match, 0 = skip, 1 = attach all); likelyWrong marks "Same person" despite strong conflicts, and unsure says why the answer was "Not sure".
  * @param {boolean} props.loading - Indicates if the component is in a loading state.
  * @param {(loading: boolean) => void} props.setLoading - Function to set the loading state.
  * @param {boolean} props.loadError - Whether the last attempt to load hints failed.
@@ -103,7 +123,7 @@ function treePageUrl(pid?: string): string | undefined {
  * @returns {JSX.Element} The DocumentMatcher Section.
  */
 export default function DocumentMatcher({ submit, loading, setLoading, hintType, setHintType, loadError, onRetry }: {
-  submit: (submit: -1 | 0 | 1, likelyWrong?: boolean) => void;
+  submit: (submit: -1 | 0 | 1, likelyWrong?: boolean, unsure?: UnsureReason) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   hintType: string;
@@ -120,8 +140,8 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const BUTTONS_ENABLING_TIMEOUT_DURATION_MS = 700;
   const [warnUser, setWarnUser] = useState<boolean>(false);
-  // "Not sure" first offers the original record, unless they've already opened it for this hint
-  const [askSource, setAskSource] = useState<boolean>(false);
+  // "Not sure" asks why, and offers the original record unless they've already opened it for this hint
+  const [askReason, setAskReason] = useState<boolean>(false);
   const [sourceOpened, setSourceOpened] = useState<boolean>(false);
 
   const { context, setContext } = useContext(CONTEXT) as ContextState;
@@ -130,25 +150,23 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   /**
    * Records how quickly the vote was made, then submits it.
    * @param value - The vote (-1 = not a match, 0 = skip, 1 = attach all).
+   * @param unsure - Why the answer was "Not sure".
    */
-  function vote(value: -1 | 0 | 1) {
+  function vote(value: -1 | 0 | 1, unsure?: UnsureReason) {
     haptic("tap");
     recordVote(value);
     // "Same person" on a hint with several conflicting facts is treated as a wrong answer for the streak
-    submit(value, value === 1 && conflictCount >= STRONG_CONFLICTS);
+    // Matching family outweighs a few conflicting facts, so "Same person" isn't marked as likely wrong then
+    submit(value, value === 1 && conflictCount >= STRONG_CONFLICTS && !familyAgrees, unsure);
   }
 
   /**
-   * Answers "Not sure", but first suggests the original record, which may have more details.
+   * Answers "Not sure" with the reason the volunteer picked.
+   * @param reason - Why they're not sure.
    */
-  function voteUnsure() {
-    if (context.hintQue[0]?.url && !sourceOpened && !askSource) {
-      haptic("tap");
-      setAskSource(true);
-      return;
-    }
-    setAskSource(false);
-    vote(0);
+  function voteUnsure(reason: UnsureReason) {
+    setAskReason(false);
+    vote(0, reason);
   }
 
   /**
@@ -343,6 +361,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       if (match.onlyOnTree && treePerson) {
         return {
           name: (treePerson.firstName ?? "").trim().split(/\s+/)[0],
+          fullName: shortName(treePerson),
           heading: treePerson.relationship,
           rows: [...buildRows(match.recordPerson, treePerson, false), ...familyTimelineRows(treePerson, matches[0]?.recordPerson, true)],
           notOnTree: false,
@@ -351,6 +370,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       }
       return {
         name: (match.recordPerson.firstName ?? "").trim().split(/\s+/)[0],
+        fullName: shortName(match.recordPerson),
         // The main person is shown by first name only (no middle names); family members keep their relationship
         heading: match.recordPerson.relationship === Relationship.FocusPerson
           ? (match.recordPerson.firstName ?? "").trim().split(/\s+/)[0] || "Main person"
@@ -369,7 +389,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   const conflictCount = useMemo(() => people.reduce((sum, person) => sum + person.rows.filter((row) => row.status === "bad").length, 0), [people]);
   // Each new hint starts without the Not sure prompt
   useEffect(() => {
-    setAskSource(false);
+    setAskReason(false);
     setSourceOpened(false);
   }, [hint]);
 
@@ -378,6 +398,40 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   // Possible duplicates compare two people already on the tree, not a record with the tree
   const isDuplicate = hint?.type === "possible_duplicate";
   const firstName = people[0]?.rows[0]?.record;
+
+  // Relatives listed for both people whose facts agree. The same family is strong evidence of the same
+  // person, even when a birth year is off, and easy to miss below the main table.
+  const familyAgreement = useMemo(() => {
+    if (!isDuplicate) return [];
+    return matches.slice(1).flatMap((match, i) => {
+      const person = people[i + 1];
+      const treePerson = match.matchingTreePeople[match.selectedCandidateIndex ?? 0];
+      if (!person || person.notOnTree || person.onlyOnTree || !treePerson) return [];
+      if (person.rows.some((row) => row.status === "bad")) return [];
+      // The same person on the tree attached to both, not just someone with the same name
+      const linked = Boolean(match.recordPerson.matchpid) && match.recordPerson.matchpid === treePerson.pid;
+      return [{ who: `${person.heading.toLowerCase()} ${person.name}`.trim(), linked }];
+    });
+  }, [isDuplicate, matches, people]);
+  const familyAgrees = familyAgreement.length >= 2 || familyAgreement.some((relative) => relative.linked);
+  const mainDiffers = (people[0]?.rows ?? []).some((row) => row.status === "bad" || row.status === "close");
+  // Two copies of one person on the tree often differ only because one has someone else's death attached.
+  // When the deaths are the only conflict and the birth date or family says it's one person, say so.
+  const onlyDeathsDiffer = useMemo(() => {
+    const rows = people[0]?.rows ?? [];
+    const conflicts = rows.filter((row) => row.status === "bad");
+    const deathOnly = conflicts.length > 0 && conflicts.every((row) => ["Died", "Death place", "Buried", "Burial place"].includes(row.label));
+    const exactBirth = rows.some((row) => row.label === "Born" && row.reason === "Exact same date");
+    return isDuplicate && deathOnly && (exactBirth || familyAgrees);
+  }, [people, isDuplicate, familyAgrees]);
+
+  // A person whose own facts can't all be true, like a census after their own death: one of those facts is
+  // wrong, so a conflict it causes isn't evidence of two different people
+  const ownConflicts = useMemo(() => {
+    const sides = isDuplicate ? ["Person 1", "Person 2"] : ["The record", "The tree person"];
+    const persons = [matches[0]?.recordPerson, matches[0]?.matchingTreePeople[matches[0].selectedCandidateIndex ?? 0]];
+    return persons.flatMap((person, i) => selfConflicts(person).map((problem) => ({ who: sides[i], problem })));
+  }, [isDuplicate, matches]);
 
   // Vital facts left out here, which the original source often has. For a record, the record; for two
   // people on the tree, each one's own tree page.
@@ -507,6 +561,30 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                   </span>
                 </p>
               ))}
+              {onlyDeathsDiffer && ownConflicts.length === 0 && (
+                <p className="source-tip self-conflict" role="note">
+                  <span className="source-tip-icon self-conflict-icon" aria-hidden="true">!</span>
+                  <span><b>Only the deaths disagree.</b> Everything else points to one person, so one of them probably has someone else’s death attached.</span>
+                </p>
+              )}
+              {ownConflicts.map(({ who, problem }) => (
+                <p className="source-tip self-conflict" role="note" key={who + problem}>
+                  <span className="source-tip-icon self-conflict-icon" aria-hidden="true">!</span>
+                  <span><b>{who === "The record" ? "The record’s" : `${who}’s`} own facts disagree:</b> {problem}. One of those is probably wrong, so don’t count it against a match.</span>
+                </p>
+              ))}
+              {/* Matching family sits below the main table, so it's called out up here; the other clues show in the table */}
+              {familyAgrees && (
+                <div className="source-tip clue-note" role="note">
+                  <span className="source-tip-icon clue-note-icon" aria-hidden="true">✓</span>
+                  <div>
+                    <b>Same family:</b> {listNames(familyAgreement.map((relative) => relative.who))}
+                    {mainDiffers && !onlyDeathsDiffer && (
+                      <p className="clue-weight">Stronger evidence than a date or place that’s off.</p>
+                    )}
+                  </div>
+                </div>
+              )}
               {people.length > 0 && (
                 <CompareTable
                   rows={people[0].rows}
@@ -536,28 +614,39 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       <div className="vote-bar" role="toolbar" aria-label="Your answer">
         <div className="vote-inner">
           {nudge}
-          {askSource && hint?.url ? (
-            <div className="confirm-same" role="alertdialog" aria-labelledby="ask-source-text">
-              <p id="ask-source-text">
-                <span className="ask-source-lead">Not sure?</span> {isDuplicate ? "Their pages on the tree" : "The original record"} may have more details that help you decide.
-              </p>
-              <div className="vote-answers">
-                <button type="button" className="vote-btn vote-btn--no" onClick={voteUnsure}>
-                  Still not sure
+          {askReason ? (
+            <div className="confirm-same unsure-prompt" role="alertdialog" aria-labelledby="unsure-text">
+              <p id="unsure-text"><span className="ask-source-lead">Not sure?</span> What made it hard to tell?</p>
+              <div className="unsure-reasons">
+                <button type="button" className="vote-btn unsure-reason" onClick={() => voteUnsure("not_enough_info")} autoFocus>
+                  Not enough info
                 </button>
-                <a
-                  className="vote-btn vote-btn--yes"
-                  href={hint.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => {
-                    setSourceOpened(true);
-                    setAskSource(false);
-                  }}
-                  autoFocus
-                >
-                  Check source ↗
-                </a>
+                <button type="button" className="vote-btn unsure-reason" onClick={() => voteUnsure("facts_disagree")}>
+                  Facts disagree
+                </button>
+                <button type="button" className="vote-btn unsure-reason" onClick={() => voteUnsure("other")}>
+                  Other
+                </button>
+              </div>
+              <div className="unsure-footer">
+                <button type="button" className="vote-link" onClick={() => setAskReason(false)}>
+                  ‹ Back to answers
+                </button>
+                {/* The original record may settle it, unless they've already looked */}
+                {hint?.url && !sourceOpened && (
+                  <a
+                    className="vote-link unsure-source"
+                    href={hint.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      setSourceOpened(true);
+                      setAskReason(false);
+                    }}
+                  >
+                    {isDuplicate ? "Check their pages" : "Check source"} ↗
+                  </a>
+                )}
               </div>
             </div>
           ) : warnUser ? (
@@ -581,7 +670,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                   <span className="vote-mark" aria-hidden="true">✓</span> Same person
                 </button>
               </div>
-              <button type="button" className="vote-link vote-link--unsure" onClick={voteUnsure} disabled={votingBlocked}>
+              <button type="button" className="vote-link vote-link--unsure" onClick={() => { haptic("tap"); setAskReason(true); }} disabled={votingBlocked}>
                 Not sure
               </button>
             </div>

@@ -12,11 +12,11 @@ GitHub Pages (the app)  ──GET hints / POST answers──▶  Apps Script (Co
 | Tab | What's in it |
 |---|---|
 | Summary | Live counts: answers, people, check hint accuracy ("Not sure" not counted), time per answer |
-| Votes | One row per answer: time received, anonymous voter ID, session, hint ID, whether it was a check hint and if it was right ("Not sure" is left blank), the answer, seconds spent, VIP, both people's tree IDs, the answer's ID, and when it was given |
+| Votes | One row per answer: time received, anonymous voter ID, session, hint ID, whether it was a check hint and if it was right ("Not sure" is left blank), the answer, seconds spent, VIP, both people's tree IDs, the answer's ID, when it was given, for "Not sure" why (not enough info, facts disagree, or other), and the name the volunteer gave, if any |
 | Hints | The pairs to vote on. Each volunteer starts at a random row and goes on from there, wrapping back to the top at the end. Each row is a hint ID and the hint as JSON |
 | Checks | Check hints with known answers: 1 is the same person, -1 is different people |
 | Voters | People who entered the VIP code |
-| Sessions | Sessions ended after three missed check hints |
+| Sessions | Sessions ended after three missed check hints, with the voter ID and name |
 
 Answers are only ever added. If someone goes back and changes an answer after it was sent, both rows are
 kept; the later one is their final answer. Each answer carries a `vote_id`, and the script records each
@@ -24,6 +24,10 @@ kept; the later one is their final answer. Each answer carries a `vote_id`, and 
 When analyzing, keep one row per `vote_id`, then the latest row per voter and hint by `answered_at`
 (`time` is when the Sheet received it, which can be later after a retry). A check hint is graded on its first
 answer only: going Back and re-answering one isn't sent.
+
+A Votes tab made before the `unsure_reason` and `name` columns existed gets them added on the next answer.
+Names are what volunteers typed, kept in their browser and sent with each answer; one person can show up
+under slightly different spellings, so the voter ID is the reliable way to group a person's answers.
 
 The Votes tab has room for 50,000 answers, with `time` and `answered_at` formatted as date and time. Rows
 the script adds past that may show only the date; select columns A and O and choose Format → Number →

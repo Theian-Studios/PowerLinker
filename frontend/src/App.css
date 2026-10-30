@@ -259,10 +259,11 @@ button.danger.outlined:hover:not(:disabled) {
 
 /* PowerLinker theme: warm off-white, olive green and soft neutrals, in the spirit of family-history sites */
 :root {
-  --pl-bg: #ffffff;
-  /* The top bar is a light neutral gray so it reads as separate from the white page */
-  --pl-header: #f6f6f4;
-  --pl-header-border: #e6e5df;
+  /* A barely warm off-white behind the white cards */
+  --pl-bg: #fcfbf9;
+  /* The top bar is white like the cards, set off from the page by a soft shadow */
+  --pl-header: #ffffff;
+  --pl-header-shadow: 0 1px 2px rgba(38, 38, 36, 0.04), 0 2px 8px rgba(38, 38, 36, 0.03);
   --pl-surface: #ffffff;
   --pl-surface-alt: #f4f3ee;
   --pl-border: #e5e3db;
@@ -274,19 +275,24 @@ button.danger.outlined:hover:not(:disabled) {
   --pl-olive-dark: #4d6419;
   --pl-olive-light: #8aa93a;
 
-  --pl-ok: #4f7a17;
-  --pl-ok-bg: #e4eed3;
-  --pl-close: #9a6a00;
-  --pl-close-bg: #f8ebc2;
-  --pl-close-wash: #fcf6e3;
-  --pl-bad: #a2402f;
-  --pl-bad-bg: #f5ddd7;
-  --pl-bad-wash: #fbf0ed;
+  --pl-ok: #467212;
+  --pl-ok-bg: #deebcb;
+  --pl-close: #8f6200;
+  --pl-close-bg: #f6e6b4;
+  --pl-close-wash: #fbf2da;
+  --pl-bad: #993727;
+  --pl-bad-bg: #f2d6ce;
+  --pl-bad-wash: #f9e9e4;
   --pl-none: #8d8b83;
   --pl-none-bg: #ebeae4;
 
   --pl-gray-btn: #5e5c55;
   --pl-gray-btn-border: #cfccc2;
+}
+
+/* Slightly bigger than the browser's 16px; sizes in rem scale with it */
+html {
+  font-size: 17px;
 }
 
 body {

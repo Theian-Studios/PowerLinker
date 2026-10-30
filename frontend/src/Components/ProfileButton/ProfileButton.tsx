@@ -1,26 +1,34 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { submitProfileCode } from "../../Hooks/useLambdaFetch";
+import { FormEvent, useContext, useEffect, useRef, useState } from "react";
+import { CONTEXT, ContextState } from "../../Models/Context";
+import { MAX_NAME_LENGTH, saveVolunteerName, shouldAskName, volunteerName } from "../../Services/sheetsApi";
 import "./ProfileButton.css";
 
-type Status = "idle" | "sending" | "accepted" | "rejected" | "error";
-
-/** What to tell them after they send a code. */
-const MESSAGES: Partial<Record<Status, string>> = {
-  accepted: "Code accepted.",
-  rejected: "That code didn't work.",
-  error: "Couldn't reach the server. Try again.",
-};
-
 /**
- * ProfileButton Component - A person icon in the header that opens a small profile panel for entering a code.
- * The code is checked by the backend; nothing else in the app changes with it.
+ * ProfileButton Component - A person icon in the header that opens a small profile panel: points and hints
+ * answered all time in this browser, and the volunteer's name, which goes with each answer so the lab knows
+ * who did which records. On a first visit to the public site the same panel opens by itself to ask for the
+ * name, which they can skip.
  * @returns {JSX.Element} The button, and the panel while it's open.
  */
 export default function ProfileButton() {
-  const [open, setOpen] = useState(false);
-  const [code, setCode] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
+  // A first visit opens the panel as a welcome; it's only asked once
+  const [welcome, setWelcome] = useState<boolean>(shouldAskName);
+  const [open, setOpen] = useState<boolean>(welcome);
+  const [name, setName] = useState<string>(volunteerName);
+  const [saved, setSaved] = useState<boolean>(false);
   const input = useRef<HTMLInputElement>(null);
+  const { context } = useContext(CONTEXT) as ContextState;
+
+  /**
+   * Closes the panel. Closing the welcome counts as skipping it, so it doesn't come back.
+   */
+  const close = () => {
+    if (welcome) {
+      saveVolunteerName(volunteerName());
+      setWelcome(false);
+    }
+    setOpen(false);
+  };
 
   // Escape closes the panel, like other popups
   useEffect(() => {
@@ -31,31 +39,36 @@ export default function ProfileButton() {
      * @param event - The key that was pressed.
      */
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+    // eslint-disable-next-line
+  }, [open, welcome]);
 
   /**
-   * Opens the panel fresh, without the last code or message.
+   * Opens the panel with the saved name.
    */
   const openPanel = () => {
-    setCode("");
-    setStatus("idle");
+    setName(volunteerName());
+    setSaved(false);
     setOpen(true);
   };
 
   /**
-   * Sends the code to the backend and shows whether it worked.
+   * Saves the name; the welcome closes once it's given.
    * @param event - The form submission.
    */
-  const send = async (event: FormEvent) => {
+  const save = (event: FormEvent) => {
     event.preventDefault();
-    if (!code.trim() || status === "sending") return;
-    setStatus("sending");
-    const accepted = await submitProfileCode(code);
-    setStatus(accepted === undefined ? "error" : accepted ? "accepted" : "rejected");
+    saveVolunteerName(name);
+    setName(volunteerName());
+    if (welcome) {
+      setWelcome(false);
+      setOpen(false);
+      return;
+    }
+    setSaved(true);
   };
 
   return (
@@ -67,40 +80,60 @@ export default function ProfileButton() {
         </svg>
       </button>
       {open && (
-        <div className="profile-overlay" onClick={() => setOpen(false)}>
+        <div className="profile-overlay" onClick={close}>
           <form
             className="profile-panel"
             role="dialog"
             aria-modal="true"
             aria-labelledby="profile-title"
             onClick={(event) => event.stopPropagation()}
-            onSubmit={send}
+            onSubmit={save}
           >
             <div className="profile-head">
-              <h2 id="profile-title">Profile</h2>
-              <button type="button" className="profile-close" aria-label="Close" onClick={() => setOpen(false)}>✕</button>
+              <h2 id="profile-title">{welcome ? "Welcome!" : "Profile"}</h2>
+              <button type="button" className="profile-close" aria-label="Close" onClick={close}>✕</button>
             </div>
-            <label className="profile-label" htmlFor="profile-code">Have a code? Enter it here.</label>
+            {!welcome && (
+              <>
+                <dl className="profile-stats">
+                  <div className="profile-stat">
+                    <dt>Points</dt>
+                    <dd>{context.points.toLocaleString()}</dd>
+                  </div>
+                  <div className="profile-stat">
+                    <dt>Hints answered</dt>
+                    <dd>{context.answered.toLocaleString()}</dd>
+                  </div>
+                </dl>
+                <p className="profile-note">All time, on this device.</p>
+              </>
+            )}
+            <label className="profile-label" htmlFor="profile-name">
+              {welcome ? "What’s your name? It goes with your answers so the lab knows who did which records." : "Your name"}
+            </label>
             <div className="profile-row">
               <input
-                id="profile-code"
+                id="profile-name"
                 ref={input}
                 className="profile-input"
-                value={code}
+                value={name}
+                maxLength={MAX_NAME_LENGTH}
                 onChange={(event) => {
-                  setCode(event.target.value);
-                  if (status !== "sending") setStatus("idle");
+                  setName(event.target.value);
+                  setSaved(false);
                 }}
-                autoComplete="off"
-                autoCapitalize="characters"
+                autoComplete="name"
                 spellCheck={false}
               />
-              <button type="submit" className="profile-save" disabled={!code.trim() || status === "sending"}>
-                {status === "sending" ? "Saving…" : "Save"}
+              <button type="submit" className="profile-save" disabled={welcome && !name.trim()}>
+                Enter
               </button>
             </div>
-            {MESSAGES[status] && (
-              <p className={`profile-message profile-message--${status}`} role="status">{MESSAGES[status]}</p>
+            {saved && <p className="profile-message profile-message--accepted" role="status">Saved.</p>}
+            {welcome && (
+              <button type="button" className="profile-skip" onClick={close}>
+                Skip for now
+              </button>
             )}
           </form>
         </div>

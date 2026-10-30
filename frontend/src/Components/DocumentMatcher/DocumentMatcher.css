@@ -128,6 +128,30 @@
     font-family: Georgia, serif;
 }
 /* Beats the global a:hover rule in App.css, which turns links white */
+/* Clues for the same person: a green note so they aren't outweighed by one red row */
+.source-tip.clue-note {
+    background: var(--pl-ok-bg);
+}
+.source-tip-icon.clue-note-icon {
+    border-color: var(--pl-ok);
+    color: var(--pl-ok);
+    font-style: normal;
+}
+.clue-weight {
+    margin: 4px 0 0;
+    color: var(--pl-muted);
+}
+
+/* A person whose own facts can't all be true: amber, since it's a warning about the data, not a conflict */
+.source-tip.self-conflict {
+    background: var(--pl-close-wash);
+}
+.source-tip-icon.self-conflict-icon {
+    border-color: var(--pl-close);
+    color: var(--pl-close);
+    font-style: normal;
+}
+
 .source-tip a.source-tip-link {
     font-weight: 600;
     color: var(--pl-ink);
@@ -153,7 +177,8 @@
 /* Answer bar */
 .vote-bar {
     flex: none;
-    background: var(--pl-bg);
+    /* White like the cards, so the answers stand apart from the page */
+    background: var(--pl-surface);
     border-top: 1px solid var(--pl-border);
     padding: 12px 16px calc(10px + env(safe-area-inset-bottom));
 }
@@ -203,11 +228,11 @@
 }
 /* Lighter gray with dark text, which stays readable (white on a light gray would be too faint) */
 .vote-btn--no {
-    background: #d6d3ca;
+    background: #e4e1d9;
     color: var(--pl-ink);
 }
 .vote-btn--no:hover:not(:disabled) {
-    background: #c6c3b9;
+    background: #d6d3ca;
 }
 /* A slightly lighter olive that still keeps white text readable */
 .vote-btn--yes {
@@ -323,12 +348,39 @@
 .ask-source-lead {
     font-weight: 700;
 }
-/* "Check source" in the Not sure prompt is a link styled as an answer button */
-.vote-answers a.vote-btn,
-.vote-answers a.vote-btn:hover {
-    text-decoration: none;
-    color: #fff;
+/* The reasons for Not sure: plain buttons, so none looks like the expected answer */
+.unsure-reasons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
 }
+.vote-btn.unsure-reason {
+    min-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    background: var(--pl-surface);
+    color: var(--pl-ink);
+    border: 1px solid var(--pl-border);
+}
+.vote-btn.unsure-reason:hover:not(:disabled) {
+    background: var(--pl-surface-alt);
+}
+@media (max-width: 600px) {
+    .vote-btn.unsure-reason {
+        padding: 12px 6px;
+        font-size: 0.92rem;
+        line-height: 1.25;
+    }
+}
+.unsure-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.unsure-source {
+    text-decoration: none;
+}
+
 
 /* Shown in place of a hint when loading failed or there are no hints left */
 .hint-status {

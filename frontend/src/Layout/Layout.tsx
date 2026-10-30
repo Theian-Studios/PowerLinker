@@ -55,14 +55,14 @@ export function Layout() {
                         </div>
                     </div>
                 </div>
-                {/* Points on the left, answers in a row on the right, just above the bar */}
+                {/* Points first on the left; how many more in a row earn the next bonus on the right, above the bar */}
                 {onHintPage && (
                     <div className="progress-row">
                         <div className="progress-labels">
-                            <span className="points-count">{context.points} pts</span>
+                            <span className="points-count"><b>{context.points}</b> points</span>
                             <span className="progress-count">
                                 {/* A new key on each change replays the slide-up */}
-                                <span key={context.streak} className={`count-num${glow ? " is-new" : ""}`}>{context.streak}</span> of {STREAK_GOAL}
+                                <span key={context.streak} className={`count-num${glow ? " is-new" : ""}`}>{STREAK_GOAL - context.streak}</span> more for +{STREAK_POINTS}
                             </span>
                         </div>
                         <div
