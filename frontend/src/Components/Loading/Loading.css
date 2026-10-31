@@ -10,12 +10,18 @@
   box-shadow: 0 2px 16px 0 rgba(0,0,0,0.07);
 }
 
+/* Over the page but under the top bar, so the name prompt and Profile stay on top */
 .loader.fixed {
   position: fixed;
   inset: 0;
   margin: auto;
-  z-index: 1000;
+  z-index: 5;
   isolation: isolate;
+  width: fit-content;
+  height: fit-content;
+  padding: 16px 24px 14px;
+  background: var(--pl-surface);
+  border: 1px solid var(--pl-border);
 }
 
 .loader::after {
@@ -69,6 +75,15 @@
   color: #475569;
   padding-bottom: 0.5em;
   margin-top: 0.5em;
+}
+.loading-text:empty {
+  display: none;
+}
+.loader.fixed .loading-text {
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 0.95rem;
+  color: var(--pl-muted);
 }
 
 .loading-warning {

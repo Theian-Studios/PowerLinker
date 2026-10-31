@@ -11,7 +11,8 @@ GitHub Pages (the app)  ──GET hints / POST answers──▶  Apps Script (Co
 
 | Tab | What's in it |
 |---|---|
-| Summary | Live counts: answers, people, check hint accuracy ("Not sure" not counted), time per answer |
+| Summary | Live counts in four sections: progress through the hints, answers (with Not sure reasons), volunteers, and check hints (accuracy leaves out Not sure) |
+| Volunteers | One row per voter ID, most answers first: their latest name, answers, last answer, check hints right and accuracy, and Not sure count. All formulas over Votes |
 | Votes | One row per answer: time received, anonymous voter ID, session, hint ID, whether it was a check hint and if it was right ("Not sure" is left blank), the answer, seconds spent, VIP, both people's tree IDs, the answer's ID, when it was given, for "Not sure" why (not enough info, facts disagree, or other), and the name the volunteer gave, if any |
 | Hints | The pairs to vote on. Each volunteer starts at a random row and goes on from there, wrapping back to the top at the end. Each row is a hint ID and the hint as JSON |
 | Checks | Check hints with known answers: 1 is the same person, -1 is different people |
@@ -25,7 +26,8 @@ When analyzing, keep one row per `vote_id`, then the latest row per voter and hi
 (`time` is when the Sheet received it, which can be later after a retry). A check hint is graded on its first
 answer only: going Back and re-answering one isn't sent.
 
-A Votes tab made before the `unsure_reason` and `name` columns existed gets them added on the next answer.
+A tab made before a column existed gets the column and its header on the next write, and a full tab gets
+more rows, so answers never fail for lack of room.
 Names are what volunteers typed, kept in their browser and sent with each answer; one person can show up
 under slightly different spellings, so the voter ID is the reliable way to group a person's answers.
 

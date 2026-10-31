@@ -22,6 +22,8 @@ const ANSWERS = { "1": "same", "-1": "different", "0": "not sure" };
 // Why a volunteer chose "Not sure"; anything else the app sends is left blank
 const UNSURE_REASONS = { not_enough_info: "not enough info", facts_disagree: "facts disagree", other: "other" };
 const MAX_NAME_LENGTH = 80;
+// Rows added at a time when a tab fills up
+const ROWS_TO_ADD = 5000;
 const MAX_COUNT = 25;
 
 /**
@@ -221,12 +223,14 @@ function writeRows(name, headers, rows) {
   if (rows.length === 0) return;
   const sheet = tab(name, headers);
   const width = rows[0].length;
-  // A tab made before a column was added is too narrow; widen it and fill in the new headers
-  if (sheet.getMaxColumns() < width) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(), width - sheet.getMaxColumns());
-    if (headers) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  }
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, width).setValues(rows);
+  // A tab made before a column was added is too narrow, and its header row is missing the new names
+  if (sheet.getMaxColumns() < width) sheet.insertColumnsAfter(sheet.getMaxColumns(), width - sheet.getMaxColumns());
+  if (headers && sheet.getLastColumn() < headers.length) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  // getRange can't reach past the tab's last row, so a full tab gets more rows first
+  const first = sheet.getLastRow() + 1;
+  const missing = first + rows.length - 1 - sheet.getMaxRows();
+  if (missing > 0) sheet.insertRowsAfter(sheet.getMaxRows(), missing + ROWS_TO_ADD);
+  sheet.getRange(first, 1, rows.length, width).setValues(rows);
 }
 
 /**

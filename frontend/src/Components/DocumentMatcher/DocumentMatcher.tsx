@@ -677,7 +677,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
           )}
         </div>
       </div>
-      {loading && <Loading className="fixed" />}
+      {loading && <Loading className="fixed" message="Loading hints…" />}
     </form>
   );
 }
