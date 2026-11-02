@@ -6,11 +6,34 @@ import { CONTEXT, ContextState, /* Context, getInitialContext */ } from "../../M
 import { invalidateSession } from "../../Hooks/useLambdaFetch.ts";
 import { saveUpcoming, savedCursor, savedUpcoming, usingSheets } from "../../Services/sheetsApi.ts";
 import { getPersons } from "../../Services/getPersons.ts";
-import { State } from "../../Hooks/useFetch.ts";
 import useQueue, { QueuedVote } from "../../Hooks/useQueue.ts";
+import useOnline from "../../Hooks/useOnline.ts";
+import { isOnline } from "../../Services/network.ts";
 import { useHomeHandlers } from "./utils.ts";
 
 const MAX_HINTS_IN_QUEUE = 20;
+/** How often hints that couldn't load are asked for again. */
+const HINTS_RETRY_MS = 30000;
+/** Longest wait before asking again once the connection comes back. */
+const ONLINE_SPREAD_MS = 5000;
+
+/**
+ * Says what's happening with the connection, when the volunteer needs to know.
+ * @param online - Whether the browser is online.
+ * @param waiting - Answers not yet received by the Sheet.
+ * @param failing - Whether the last try to send them failed.
+ * @param hintsShown - Whether there's a hint on screen to keep working on.
+ * @returns The note, or undefined when all is well.
+ */
+function connectionNote(online: boolean, waiting: number, failing: boolean, hintsShown: boolean): string | undefined {
+  const answers = `${waiting} ${waiting === 1 ? "answer" : "answers"}`;
+  if (!online) {
+    if (waiting > 0) return `You’re offline. ${answers} will be sent when you’re back online.`;
+    return hintsShown ? "You’re offline. You can keep answering the hints already loaded." : undefined;
+  }
+  if (failing && waiting > 0) return `${answers} haven’t reached the lab yet. They’re kept on this device and will be sent again shortly.`;
+  return undefined;
+}
 
 /**
  * Home Page Component - Displays document match table and button bar.
@@ -22,8 +45,6 @@ export default function Home(): ReactElement {
   const hintsDone: number = context.reviewedHints.length;
 
   const [attachQueue, setAttachQueue] = useState<QueuedVote[]>([]);
-  // Changes every 30 seconds while answers are waiting, so ones that failed to send are retried
-  const [retryTick, setRetryTick] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   // The public site only has the lab's possible duplicates
   const [hintType, setHintType] = useState<string>(usingSheets ? "possible_duplicate" : "record_attachment");
@@ -33,7 +54,8 @@ export default function Home(): ReactElement {
   const removeSent = useCallback((ids: string[]) => {
     setAttachQueue((queue) => queue.filter((item) => !ids.includes(item.id)));
   }, []);
-  const sendVotes: State<boolean> = useQueue(attachQueue, retryTick, removeSent);
+  const sendVotes = useQueue(attachQueue, removeSent);
+  const online = useOnline();
 
   const { fetchHints, submit } = useHomeHandlers({
     awaitingHints,
@@ -46,13 +68,6 @@ export default function Home(): ReactElement {
     hintType,
     setLoadError,
   });
-
-  const answersWaiting = attachQueue.length > 0;
-  useEffect(() => {
-    if (!answersWaiting) return;
-    const interval = setInterval(() => setRetryTick((tick) => tick + 1), 30000);
-    return () => clearInterval(interval);
-  }, [answersWaiting]);
 
   useEffect(() => {
     if (sendVotes.error) {
@@ -76,17 +91,54 @@ export default function Home(): ReactElement {
     saveUpcoming(context.hintQue.filter((hint) => !hint.dummy && hint.raw).map((hint) => hint.raw));
   }, [context.hintQue]);
 
+  /**
+   * Asks for the hints after the furthest one queued, answered, or answered on an earlier visit; without the
+   * loading screen if there are still hints to show.
+   */
+  const fetchMore = () => {
+    let newTime = savedCursor();
+    [...context.hintQue, ...context.reviewedHints].forEach(hint => {
+      if (hint.insertTime > newTime) newTime = hint.insertTime;
+    });
+    fetchHints(newTime, context.hintQue.length > 0);
+  };
+  const latestFetchMore = useRef(fetchMore);
+  latestFetchMore.current = fetchMore;
+
   useEffect(() => {
-    if (context.hintQue.length < MAX_HINTS_IN_QUEUE) {
-      const silent = context.hintQue.length > 0;
-      let newTime = savedCursor();
-      [...context.hintQue, ...context.reviewedHints].forEach(hint => {
-        if (hint.insertTime > newTime) newTime = hint.insertTime;
-      });
-      fetchHints(newTime, silent);
-    }
+    if (context.hintQue.length < MAX_HINTS_IN_QUEUE) fetchMore();
     // eslint-disable-next-line
   }, [context.hintQue.length]);
+
+  // Hints that couldn't load are asked for again without waiting for "Try again": when the connection comes
+  // back, when the volunteer comes back to the tab, and every so often
+  useEffect(() => {
+    if (!loadError) return;
+    /**
+     * Tries again if there's a chance it works and someone's there to see it.
+     */
+    const retry = () => {
+      if (isOnline() && document.visibilityState === "visible") latestFetchMore.current();
+    };
+    // A room's Wi-Fi comes back for everyone at once, so each waits a random few seconds
+    let onlineTimer: ReturnType<typeof setTimeout> | undefined;
+    /**
+     * Tries again a moment after the connection comes back.
+     */
+    const online = () => {
+      clearTimeout(onlineTimer);
+      onlineTimer = setTimeout(retry, Math.random() * ONLINE_SPREAD_MS);
+    };
+    const interval = setInterval(retry, HINTS_RETRY_MS);
+    window.addEventListener("online", online);
+    document.addEventListener("visibilitychange", retry);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(onlineTimer);
+      window.removeEventListener("online", online);
+      document.removeEventListener("visibilitychange", retry);
+    };
+  }, [loadError]);
 
   // A div, since the layout's <main> already wraps every page
   return (
@@ -117,6 +169,8 @@ export default function Home(): ReactElement {
           hintType={hintType}
           setHintType={setHintType}
           loadError={loadError}
+          offline={!online}
+          connectionNote={connectionNote(online, sendVotes.waiting, sendVotes.failing, context.hintQue.length > 0)}
           onRetry={() => fetchHints(savedCursor(), false)}
         />
       )}

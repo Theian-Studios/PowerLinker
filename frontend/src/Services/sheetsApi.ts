@@ -3,6 +3,8 @@
 // otherwise it uses the lab's AWS API or the local mock, as before.
 
 import { v4 } from "uuid";
+import type { QueueItem } from "../Hooks/useQueue";
+import { REQUEST_TIMEOUT_MS, timeoutSignal } from "./network";
 
 /** The Apps Script web app address, if this build uses the Sheet. */
 export const SHEETS_URL: string | undefined = import.meta.env.VITE_SHEETS_URL || undefined;
@@ -82,16 +84,20 @@ export function shouldAskName(): boolean {
 
 /**
  * Sends a request to the Sheet's script. It's sent as plain text so the browser skips the CORS
- * preflight, which Apps Script can't answer; the script reads it as JSON.
+ * preflight, which Apps Script can't answer; the script reads it as JSON. It gives up after the usual time
+ * limit: Google has been seen holding a request for minutes.
  * @param {Record<string, unknown>} body - The action and its data; the voter ID and name are added.
+ * @param {{ keepalive?: boolean }} [options] - Set keepalive to let the request finish after the page closes.
  * @returns {Promise<unknown>} The script's JSON answer.
  */
-export async function sheetsPost(body: Record<string, unknown>): Promise<unknown> {
+export async function sheetsPost(body: Record<string, unknown>, options: { keepalive?: boolean } = {}): Promise<unknown> {
   if (!SHEETS_URL) throw new Error("No Sheets URL configured");
   const response = await fetch(SHEETS_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ ...body, voter: voterId(), name: volunteerName() }),
+    keepalive: options.keepalive,
+    signal: timeoutSignal(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`Sheets request failed: ${response.status}`);
   return response.json();
@@ -144,8 +150,8 @@ export function saveCursor(insertTime: number): void {
 }
 
 const UPCOMING_KEY = "powerlinker.upcoming";
-/** Hints saved for the next visit; a few are enough to fill the wait for the next page. */
-const UPCOMING_COUNT = 8;
+/** Hints saved for the next visit: a full page, so a volunteer can keep going through a spell with no internet. */
+const UPCOMING_COUNT = 20;
 
 /**
  * Saves the next hints in the queue, as the Sheet sent them, so a returning volunteer sees one the moment the
@@ -173,5 +179,98 @@ export function savedUpcoming(): unknown[] {
     return Array.isArray(saved) ? saved.filter((hint) => Number(hint?.["insert-time"]) > cursor) : [];
   } catch {
     return [];
+  }
+}
+
+const UNSENT_KEY = "powerlinker.unsent";
+/** Most unsent answers kept; far more than a volunteer gives offline, and still small for storage. */
+const UNSENT_KEPT = 500;
+
+/**
+ * Reads the answers kept in storage until the Sheet has them.
+ * @returns {QueueItem[]} The answers, as they'll be sent.
+ */
+function readUnsent(): QueueItem[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(UNSENT_KEY) ?? "[]");
+    return Array.isArray(saved) ? saved.filter((item) => typeof item?.vote_id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Writes the answers kept until the Sheet has them.
+ * @param {QueueItem[]} items - Every answer to keep, newest last.
+ */
+function writeUnsent(items: QueueItem[]): void {
+  try {
+    if (items.length === 0) localStorage.removeItem(UNSENT_KEY);
+    else localStorage.setItem(UNSENT_KEY, JSON.stringify(items.slice(-UNSENT_KEPT)));
+  } catch {
+    // Storage blocked or full: answers are only kept for as long as the page is open, as before
+  }
+}
+
+/**
+ * Gets the answers a closed page, or another tab, left unsent. A phone can close a tab without warning, and
+ * offline the page can't send anything as it goes, so answers are kept in storage until the Sheet has them.
+ * @returns {QueueItem[]} The answers, as they'll be sent.
+ */
+export function storedAnswers(): QueueItem[] {
+  return usingSheets ? readUnsent() : [];
+}
+
+/**
+ * Keeps answers until the Sheet has them, replacing any kept copy of the same answer.
+ * @param {QueueItem[]} items - The answers, as they'll be sent.
+ */
+export function rememberAnswers(items: QueueItem[]): void {
+  if (!usingSheets || items.length === 0) return;
+  const ids = new Set(items.map((item) => item.vote_id));
+  writeUnsent([...readUnsent().filter((item) => !ids.has(item.vote_id)), ...items]);
+}
+
+/**
+ * Stops keeping answers: the Sheet has them, or they were replaced by a new answer to the same hint.
+ * @param {string[]} ids - Which answers, by the ID each was given when answered.
+ */
+export function forgetAnswers(ids: string[]): void {
+  if (!usingSheets || ids.length === 0) return;
+  const kept = readUnsent();
+  const left = kept.filter((item) => !ids.includes(item.vote_id ?? ""));
+  if (left.length !== kept.length) writeUnsent(left);
+}
+
+const ANSWERED_KEY = "powerlinker.answeredIds";
+/** Most answered hint IDs kept, newest last; about 20 KB. */
+const ANSWERED_KEPT = 2000;
+
+/**
+ * Gets the hints this browser has answered, so a hint that comes round again isn't shown twice: after the
+ * hints are rebuilt in a new order, or when two tabs were open.
+ * @returns {Set<string>} The IDs of the hints answered, the most recent 2000.
+ */
+export function answeredHintIds(): Set<string> {
+  if (!usingSheets) return new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem(ANSWERED_KEY) ?? "[]");
+    return new Set(Array.isArray(saved) ? saved.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Remembers that this browser answered a hint.
+ * @param {string | undefined} id - The answered hint's ID, if it has one.
+ */
+export function rememberAnswered(id: string | undefined): void {
+  if (!usingSheets || !id) return;
+  try {
+    const ids = [...answeredHintIds()].filter((saved) => saved !== id);
+    localStorage.setItem(ANSWERED_KEY, JSON.stringify([...ids, id].slice(-ANSWERED_KEPT)));
+  } catch {
+    // Without storage, only this visit's answers are skipped, as before
   }
 }

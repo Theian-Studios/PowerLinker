@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { CONTEXT, ContextState, STREAK_GOAL, STREAK_POINTS } from "../Models/Context";
 import { haptic } from "../Services/haptics";
 import useStreakGlow from "../Hooks/useStreakGlow";
+import useOtherTab from "../Hooks/useOtherTab";
 import ProfileButton from "../Components/ProfileButton/ProfileButton";
 import "./Layout.css";
 
@@ -20,6 +21,7 @@ export function Layout() {
     // The bar glows at its tip and the count rolls over each time an answer adds to it
     const { glow, rollFrom } = useStreakGlow();
     const left = STREAK_GOAL - context.streak;
+    const otherTab = useOtherTab();
 
     // The celebration stays until "Keep going"; the reset message closes itself after a few seconds
     useEffect(() => {
@@ -97,6 +99,20 @@ export function Layout() {
                                 ? "That was a check hint, and its answer was different."
                                 : "Too many of their own facts conflicted for this to be the same person."}
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Opened again in another tab: that one carries on, and this one waits, so the two don't show the same
+                hints. Answers given here are still sent. */}
+            {otherTab && (
+                <div className="streak-lost-overlay" role="alertdialog" aria-labelledby="other-tab-title">
+                    <div className="streak-lost">
+                        <div className="reward-title" id="other-tab-title">Open in another tab</div>
+                        <p>PowerLinker is open in another tab, so this one has paused. Your answers here are saved.</p>
+                        <button type="button" className="reward-continue" autoFocus onClick={() => window.location.reload()}>
+                            Use this tab
+                        </button>
                     </div>
                 </div>
             )}

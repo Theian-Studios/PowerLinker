@@ -12,7 +12,7 @@ import { QueuedVote, UnsureReason } from "../../Hooks/useQueue.ts";
 import { Context, ContextState, nextProgress, saveAnswered, saveProgress, saveStrikes } from "../../Models/Context.ts";
 import { asyncUseHintList } from "../../Hooks/useLambdaFetch.ts";
 import { getPersons } from "../../Services/getPersons.ts";
-import { saveCursor, usingSheets } from "../../Services/sheetsApi.ts";
+import { answeredHintIds, rememberAnswered, saveCursor, usingSheets } from "../../Services/sheetsApi.ts";
 
 export const HINTS_PER_REQUEST = 10;
 /** Hints asked for when nothing is on screen yet: enough to fill the queue in one request instead of two. */
@@ -91,15 +91,20 @@ export function useHomeHandlers({
             if (hintsResponse.data) {
             setLoadError(false);
             const hints: Hint[] = getPersons(hintsResponse);
+            // Hints answered on an earlier visit or in another tab count as seen too: after the hints are rebuilt
+            // in a new order, or when two tabs were open, they can come round again
+            const answeredBefore = answeredHintIds();
             // Counted here rather than in the update below, which React may run later: counted there, a page of
             // new hints could look like none and set off a second, full-screen load right after the first
             const alreadyHere = new Set([
+                ...answeredBefore,
                 ...latestContext.current.hintQue.map(hintKey),
                 ...latestContext.current.reviewedHints.map(hintKey),
             ]);
             const realNew = hints.filter((h) => !h.dummy && !alreadyHere.has(hintKey(h))).length;
             setContext((prev) => {
                 const seenIds = new Set([
+                ...answeredBefore,
                 ...prev.hintQue.map(hintKey),
                 ...prev.reviewedHints.map(hintKey),
                 ]);
@@ -195,7 +200,10 @@ export function useHomeHandlers({
 
         const completed = { ...hint, complete: true, graded: hint.graded || Boolean(hint.dummy), answered: true };
         // A returning volunteer picks up after the furthest hint they've answered
-        if (!hint.dummy) saveCursor(hint.insertTime);
+        if (!hint.dummy) {
+            saveCursor(hint.insertTime);
+            rememberAnswered(hintKey(hint));
+        }
         // Same person and Different extend the streak, Not sure doesn't, and a missed check hint resets it
         const missedCheck = Boolean(hint.dummy && hint.dummy.expected === -vote);
         setContext((prev) => {

@@ -151,9 +151,11 @@ function shortName(person: IPerson): string {
  * @param {(loading: boolean) => void} props.setLoading - Function to set the loading state.
  * @param {boolean} props.loadError - Whether the last attempt to load hints failed.
  * @param {() => void} props.onRetry - Tries loading hints again.
+ * @param {boolean} props.offline - Whether the browser knows it's offline.
+ * @param {string} [props.connectionNote] - What the volunteer should know about the connection, if anything.
  * @returns {JSX.Element} The DocumentMatcher Section.
  */
-export default function DocumentMatcher({ submit, loading, setLoading, hintType, setHintType, loadError, onRetry }: {
+export default function DocumentMatcher({ submit, loading, setLoading, hintType, setHintType, loadError, onRetry, offline, connectionNote }: {
   submit: (submit: -1 | 0 | 1, likelyWrong?: boolean, unsure?: UnsureReason) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
@@ -161,6 +163,8 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   setHintType: (hintType: string) => void;
   loadError: boolean;
   onRetry: () => void;
+  offline: boolean;
+  connectionNote?: string;
 }) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [buttonsEnabled, setButtonsEnabled] = useState<boolean>(false);
@@ -569,14 +573,20 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       <div className="matcher-scroll">
       <div className="matcher-content" ref={scrollContainerRef}>
         <div className="matcher-inner">
+          {connectionNote && <p className="connection-note" role="status">{connectionNote}</p>}
           {noHint ? (
             <>
             <div className="hint-meta">{hintTypeSelect}</div>
             <div className="hint-status" role="status">
-              {loadError ? (
+              {loadError && offline ? (
+                <>
+                  <h3>You’re offline</h3>
+                  <p>Hints will load as soon as you’re back online.</p>
+                </>
+              ) : loadError ? (
                 <>
                   <h3>Couldn’t load hints</h3>
-                  <p>Check your connection and try again.</p>
+                  <p>Trying again every so often. Check your connection, or try now.</p>
                   <button type="button" className="hint-status-action" onClick={onRetry}>
                     Try again
                   </button>

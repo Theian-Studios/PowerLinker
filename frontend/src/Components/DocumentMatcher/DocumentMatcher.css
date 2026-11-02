@@ -100,6 +100,28 @@
 }
 
 /* Shown when the record summary is missing a vital fact, pointing to the original source */
+/* Offline, or answers not sent yet: a quiet line above the hint, not a popup */
+.connection-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--pl-close-wash);
+    color: var(--pl-ink);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+.connection-note::before {
+    content: "";
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--pl-close);
+}
+
 .source-tip {
     display: flex;
     align-items: flex-start;

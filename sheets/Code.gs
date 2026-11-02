@@ -34,11 +34,17 @@ const MAX_COUNT = 25;
 const CACHE_ROWS = 10;
 // How long cached rows are kept (Apps Script's cache maximum); rebuilding the hints starts a new set
 const CACHE_SECONDS = 21600;
-// Stretches of hints keepWarm has just read, where new volunteers start: about an hour's worth at one every 5 minutes
-const WARM_STRETCHES = 12;
+// Stretches of hints keepWarm has read, where new volunteers start: three hours' worth at one every 5 minutes,
+// so a room of people starting together is spread over many stretches
+const WARM_STRETCHES = 36;
 // Hints in each stretch, and in the app's first page; a new volunteer starts where a whole first page fits
 const WARM_ROWS = 40;
 const FIRST_PAGE_ROWS = 20;
+// How long a save waits for another to finish before answering "busy". The app keeps its answers and sends them
+// again a little later, which is better than holding the request: Google runs only so many requests at once, and
+// requests waiting here would leave none for loading hints.
+const SAVE_WAIT_MS = 5000;
+const BUSY = "busy";
 
 /**
  * Answers GET requests: a page of hints, or one random check hint.
@@ -72,17 +78,22 @@ function doPost(e) {
   } catch (error) {
     return json({ error: "Not JSON" });
   }
-  switch (body.action) {
-    case "votes":
-      return json(addVotes(body));
-    case "code":
-      return json(checkCode(body));
-    case "invalidate":
-      appendRows("Sessions", ["time", "session", "voter", "name"],
-        [[new Date(), String(body.sid || ""), String(body.voter || "").slice(0, 64), plainText(body.name, MAX_NAME_LENGTH)]]);
-      return json({ ok: true });
-    default:
-      return json({ error: "Unknown action" });
+  try {
+    switch (body.action) {
+      case "votes":
+        return json(addVotes(body));
+      case "code":
+        return json(checkCode(body));
+      case "invalidate":
+        appendRows("Sessions", ["time", "session", "voter", "name"],
+          [[new Date(), String(body.sid || ""), String(body.voter || "").slice(0, 64), plainText(body.name, MAX_NAME_LENGTH)]]);
+        return json({ ok: true });
+      default:
+        return json({ error: "Unknown action" });
+    }
+  } catch (error) {
+    if (error.message === BUSY) return json({ error: BUSY });
+    throw error;
   }
 }
 
@@ -277,13 +288,15 @@ function addVotes(body) {
       name,
     ];
   });
+  // Found before taking the lock, so the lock is held only for the write itself
+  const sheet = spreadsheet().getSheetByName("Votes");
   // The app may send an answer again when it didn't hear back in time; each answer's ID is recorded once
   return withLock(() => {
     const cache = CacheService.getScriptCache();
     const keys = rows.map((row) => row[13]).filter(Boolean).map((id) => `vote:${id}`);
     const seen = keys.length ? cache.getAll(keys) : {};
     const fresh = rows.filter((row) => !row[13] || !seen[`vote:${row[13]}`]);
-    writeRows("Votes", VOTE_HEADERS, fresh);
+    writeRows("Votes", VOTE_HEADERS, fresh, sheet);
     const remember = {};
     fresh.forEach((row) => { if (row[13]) remember[`vote:${row[13]}`] = "1"; });
     if (Object.keys(remember).length) cache.putAll(remember, SEEN_VOTE_SECONDS);
@@ -337,7 +350,8 @@ function checkCode(body) {
  * @param {Array[]} rows - The rows to add.
  */
 function appendRows(name, headers, rows) {
-  withLock(() => writeRows(name, headers, rows));
+  const sheet = spreadsheet().getSheetByName(name);
+  withLock(() => writeRows(name, headers, rows, sheet));
 }
 
 /**
@@ -345,29 +359,43 @@ function appendRows(name, headers, rows) {
  * @param {string} name - The tab name.
  * @param {string[]} headers - Its column headers, for a new tab.
  * @param {Array[]} rows - The rows to add.
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} [found] - The tab, if it was already looked up.
  */
-function writeRows(name, headers, rows) {
+function writeRows(name, headers, rows, found) {
   if (rows.length === 0) return;
-  const sheet = tab(name, headers);
+  const sheet = found || tab(name, headers);
   const width = rows[0].length;
-  // A tab made before a column was added is too narrow, and its header row is missing the new names
-  if (sheet.getMaxColumns() < width) sheet.insertColumnsAfter(sheet.getMaxColumns(), width - sheet.getMaxColumns());
-  if (headers && sheet.getLastColumn() < headers.length) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  // A tab made before a column was added is too narrow, and its header row is missing the new names. Checked
+  // once an hour rather than on every save, since each check is a trip to the Sheet while holding the lock.
+  const cache = CacheService.getScriptCache();
+  const shapeKey = `shape:${name}:${width}`;
+  if (!cache.get(shapeKey)) {
+    if (sheet.getMaxColumns() < width) sheet.insertColumnsAfter(sheet.getMaxColumns(), width - sheet.getMaxColumns());
+    if (headers && sheet.getLastColumn() < headers.length) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    cache.put(shapeKey, "1", 3600);
+  }
   // getRange can't reach past the tab's last row, so a full tab gets more rows first
   const first = sheet.getLastRow() + 1;
   const missing = first + rows.length - 1 - sheet.getMaxRows();
   if (missing > 0) sheet.insertRowsAfter(sheet.getMaxRows(), missing + ROWS_TO_ADD);
-  sheet.getRange(first, 1, rows.length, width).setValues(rows);
+  try {
+    sheet.getRange(first, 1, rows.length, width).setValues(rows);
+  } catch (error) {
+    // Someone may have deleted columns by hand since the last check: check again on the next save
+    cache.remove(shapeKey);
+    throw error;
+  }
 }
 
 /**
  * Runs a function while holding the script lock, so two requests can't write over each other.
  * @param {Function} fn - What to run.
  * @returns {*} What it returns.
+ * @throws {Error} BUSY when another save held the lock for longer than SAVE_WAIT_MS.
  */
 function withLock(fn) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  if (!lock.tryLock(SAVE_WAIT_MS)) throw new Error(BUSY);
   try {
     const result = fn();
     // Write buffered changes before letting the next request in, or it can read a stale last row and

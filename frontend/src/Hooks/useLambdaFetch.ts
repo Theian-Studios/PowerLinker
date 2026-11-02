@@ -2,6 +2,7 @@ import getLambdaURL, { getLambdaCredentials } from "../Services/getLambdaURL";
 import { State, useFetch } from "./useFetch";
 import newDummyData from "../Models/NewDummyData.json";
 import { sheetsPost, usingSheets } from "../Services/sheetsApi";
+import { isOnline, REQUEST_TIMEOUT_MS, timeoutSignal, wait } from "../Services/network";
 
 export const TESTING = false;
 
@@ -68,7 +69,7 @@ export async function asyncUseHintList<T = unknown>(
   // The lab's API sends the check hint on its own, asked for at the same time as the page
   // TODO: add ?correct=true/false if we want a specific true/false dummy hint
   const [page, separateCheck] = await Promise.all([
-    takeEarlyRequest(path) ?? loadPage(path),
+    takeEarlyRequest(path) ?? loadPageWithRetries(path),
     usingSheets ? Promise.resolve(undefined) : fetchCheckHint(recordType),
   ]);
 
@@ -114,6 +115,29 @@ async function loadPage(path: string): Promise<{ ok: boolean; data?: unknown }> 
   return response.ok ? { ok: true, data: await response.json() } : { ok: false };
 }
 
+/** Waits before asking again for a page that failed: Google's script now and then fails a request outright. */
+const PAGE_RETRY_WAITS_MS = [2000, 5000];
+
+/**
+ * Gets a page of hints, asking again a couple of times if it fails, so a passing hiccup doesn't end in "Couldn't
+ * load hints". The waits vary a little, so volunteers who failed together don't all ask again together. Offline,
+ * it stops at once: the page asks again when the connection comes back.
+ * @param {string} path - The hints path with its query.
+ * @returns {Promise<{ ok: boolean; data?: unknown }>} The parsed answer, or ok false when every try failed.
+ */
+async function loadPageWithRetries(path: string): Promise<{ ok: boolean; data?: unknown }> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const page = await loadPage(path);
+      if (page.ok) return page;
+      if (attempt >= PAGE_RETRY_WAITS_MS.length || !isOnline()) return page;
+    } catch (error) {
+      if (attempt >= PAGE_RETRY_WAITS_MS.length || !isOnline()) throw error;
+    }
+    await wait(PAGE_RETRY_WAITS_MS[attempt] * (0.75 + Math.random() / 2));
+  }
+}
+
 /** The first request for hints, started by index.html before the app's code had loaded. */
 interface EarlyRequest {
   query: string;
@@ -133,7 +157,7 @@ function takeEarlyRequest(path: string): Promise<{ ok: boolean; data?: unknown }
   (window as { powerlinkerFirstHints?: EarlyRequest }).powerlinkerFirstHints = undefined;
   if (!usingSheets || !early || early.query !== path.slice(path.indexOf("?"))) return undefined;
   const timedOut = new Promise<null>((resolve) => setTimeout(() => resolve(null), HINTS_TIMEOUT_MS));
-  return Promise.race([early.response, timedOut]).then((answer) => answer ?? loadPage(path));
+  return Promise.race([early.response, timedOut]).then((answer) => answer ?? loadPageWithRetries(path));
 }
 
 /**
@@ -153,19 +177,6 @@ async function fetchCheckHint(recordType: string): Promise<unknown> {
     console.error("Error fetching a check hint:", error);
     return undefined;
   }
-}
-
-/**
- * Gets a signal that aborts a request after a while. AbortSignal.timeout is missing on older phones
- * (Safari before iOS 16), so this falls back to a timer.
- * @param {number} ms - How long to wait before giving up.
- * @returns {AbortSignal} A signal for fetch that fires after that long.
- */
-function timeoutSignal(ms: number): AbortSignal {
-  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
-  const controller = new AbortController();
-  setTimeout(() => controller.abort(), ms);
-  return controller.signal;
 }
 
 /**
@@ -231,8 +242,9 @@ export async function invalidateSession(sid: string): Promise<void> {
 export async function submitProfileCode(code: string): Promise<boolean | undefined> {
   try {
     if (usingSheets) {
-      const data = await sheetsPost({ action: "code", code }) as { accepted?: boolean };
-      return Boolean(data?.accepted);
+      const data = await sheetsPost({ action: "code", code }) as { accepted?: unknown } | null;
+      // A busy script answers without "accepted": that's "couldn't check", not "wrong code"
+      return typeof data?.accepted === "boolean" ? data.accepted : undefined;
     }
     const response = await fetch(getLambdaURL("/profile/code"), {
       method: "POST",
@@ -250,7 +262,7 @@ export async function submitProfileCode(code: string): Promise<boolean | undefin
 }
 
 /** How long to wait for hints before giving up, so a hung request can't block loading forever. */
-const HINTS_TIMEOUT_MS = 15000;
+const HINTS_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
 
 /**
  * Custom hook to invalidate a session by its session ID.

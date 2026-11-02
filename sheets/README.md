@@ -94,7 +94,7 @@ the same.
 
 Requests for hints and check hints read them through the script's cache, 10 rows at a time, so most don't
 open the Sheet, which is most of a request's time. Each time `keepWarm` runs it reads a random stretch of 40
-hints. A new volunteer's first page comes from one of the last 12 of those stretches, so it's already cached,
+hints. A new volunteer's first page comes from one of the last 36 of those stretches, so it's already cached,
 but it's numbered from a random row and their next pages carry on from there: volunteers who get the same
 stretch share only that first page. Cached rows last 6 hours. `buildHints` and `addBatch`
 start a fresh cache themselves. After editing the Hints or Checks tab by hand, run `clearHintCache` in the
@@ -108,8 +108,14 @@ at the deployed script, or at a local stand-in that runs `Code.gs` against the C
 ## Limits to know about
 
 - Anyone with the site link can add rows. Each row has an anonymous voter ID, so junk can be filtered out.
-- Apps Script handles about 30 requests at once and has daily quotas, which is enough for dozens of
-  volunteers at a time.
+- Apps Script handles about 30 requests at once and has daily quotas. Saves take turns (a lock keeps two
+  from writing the same row), so the app sends answers about 10 at a time or every 30 seconds, and a save
+  that waits more than 5 seconds for its turn answers "busy" instead of holding one of the 30. The app
+  keeps answers on the device until the Sheet has them, and tries again after a longer wait each time, so
+  a busy script delays answers but doesn't lose them. That's enough for about 50 volunteers at once.
 - Each request takes about a second, and up to 10 when the script has been idle (the keep-warm timer is
   for that). The app asks for a page of hints and a check hint in one request. Answers are sent in the
   background, so people don't wait on them.
+- A spreadsheet holds at most 10 million cells. Each answer is a row of 17, and in November 2026 about 3.6
+  million cells were in use (half of them in the raw import tabs), so there's room for a few hundred
+  thousand more answers.
