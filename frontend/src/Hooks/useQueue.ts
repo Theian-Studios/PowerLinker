@@ -28,12 +28,13 @@ const MAX_PER_REQUEST = 50;
 /**
  * On the public site, answers are sent this many at a time, or once the oldest has waited about BATCH_WAIT_MS
  * (between two thirds and four thirds of it, varying from batch to batch, so a room of people who started
- * together don't all send together). Each volunteer then sends about one request every half minute however fast
- * they answer, so 50 people at once send under two a second, which the Sheet's script (it saves one request at
- * a time) keeps up with. Waiting answers are kept in storage, so waiting doesn't put them at risk.
+ * together don't all send together). The Sheet's script saves about one request a second, however many answers
+ * it carries (measured on Google with 60 volunteers), so what matters is how often phones send: at one request
+ * every minute and a half, 60 people send under one a second. Waiting answers are kept in storage, and sent at
+ * once when the page is hidden, so waiting doesn't put them at risk.
  */
-const BATCH_SIZE = 10;
-const BATCH_WAIT_MS = 30000;
+const BATCH_SIZE = 25;
+const BATCH_WAIT_MS = 90000;
 /** Longest wait before sending once the connection comes back. */
 const ONLINE_SPREAD_MS = 10000;
 

@@ -109,8 +109,9 @@ at the deployed script, or at a local stand-in that runs `Code.gs` against the C
 
 - Anyone with the site link can add rows. Each row has an anonymous voter ID, so junk can be filtered out.
 - Apps Script handles about 30 requests at once and has daily quotas. Saves take turns (a lock keeps two
-  from writing the same row), so the app sends answers about 10 at a time or every 30 seconds, and a save
-  that waits more than 5 seconds for its turn answers "busy" instead of holding one of the 30. The app
+  from writing the same row) and each takes about a second, so the app sends answers 25 at a time or every
+  minute or two, and a save that waits more than 5 seconds for its turn answers "busy" instead of holding
+  one of the 30. The app
   keeps answers on the device until the Sheet has them, and tries again after a longer wait each time, so
   a busy script delays answers but doesn't lose them. That's enough for about 50 volunteers at once.
 - Each request takes about a second, and up to 10 when the script has been idle (the keep-warm timer is
