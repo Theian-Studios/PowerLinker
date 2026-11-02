@@ -2,6 +2,12 @@
 
 /** How long to wait for the backend before giving up, so a hung request can't hold anything up for minutes. */
 export const REQUEST_TIMEOUT_MS = 15000;
+/**
+ * How long to wait for a save. Longer, since saves take turns on the Sheet and with 60 people one can wait in
+ * line for over 10 seconds; a phone that gives up too soon sends answers the Sheet has in fact saved, and those
+ * can be saved twice.
+ */
+export const SAVE_TIMEOUT_MS = 30000;
 
 /**
  * Gets a signal that aborts a request after a while. AbortSignal.timeout is missing on older phones

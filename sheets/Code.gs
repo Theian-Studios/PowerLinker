@@ -11,8 +11,9 @@
  *   Sessions  sessions ended after three missed check hints, with the voter and their name
  *
  * Hints and check hints are kept in the script's cache, 10 rows at a time, so most requests don't open the
- * Sheet at all; that, and not the script itself, is most of a request's time. Run installKeepWarm once from the
- * editor to add a timer that keeps the script and its cache from going cold between volunteers.
+ * Sheet at all; that, and not the script itself, is most of a request's time. Run installTimers once from the
+ * editor to add a timer that keeps the script and its cache from going cold between volunteers, and one that
+ * removes answers saved twice once a day.
  *
  * The VIP code lives in Project Settings → Script properties as VIP_CODE, never in this file,
  * since this file is public on GitHub. A standalone script also needs SHEET_ID there: the ID from
@@ -45,6 +46,8 @@ const FIRST_PAGE_ROWS = 20;
 // requests waiting here would leave none for loading hints.
 const SAVE_WAIT_MS = 5000;
 const BUSY = "busy";
+// How long the daily cleanup waits for saves to finish before taking its turn
+const CLEANUP_WAIT_MS = 60000;
 
 /**
  * Answers GET requests: a page of hints, or one random check hint.
@@ -218,7 +221,7 @@ function clearHintCache() {
 
 /**
  * Keeps the script and its cache warm: reads a random stretch of WARM_ROWS hints and a check hint, and adds
- * the stretch to the ones new volunteers start in. installKeepWarm runs it every 5 minutes.
+ * the stretch to the ones new volunteers start in. installTimers runs it every 5 minutes.
  */
 function keepWarm() {
   const total = rowCount("Hints");
@@ -233,12 +236,45 @@ function keepWarm() {
 }
 
 /**
- * Adds the timer that runs keepWarm every 5 minutes, replacing any from before. Run it once from the editor;
- * it asks for permission to manage the script's triggers.
+ * Adds the timers: keepWarm every 5 minutes, and removeDuplicateVotes once a day at 3 in the morning (the
+ * script's time zone), replacing any from before. Run it once from the editor; it asks for permission to manage
+ * the script's triggers.
  */
-function installKeepWarm() {
-  ScriptApp.getProjectTriggers().filter((t) => t.getHandlerFunction() === "keepWarm").forEach((t) => ScriptApp.deleteTrigger(t));
+function installTimers() {
+  const timed = ["keepWarm", "removeDuplicateVotes"];
+  ScriptApp.getProjectTriggers().filter((t) => timed.includes(t.getHandlerFunction())).forEach((t) => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("keepWarm").timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger("removeDuplicateVotes").timeBased().everyDays(1).atHour(3).create();
+}
+
+/**
+ * Removes answers saved twice, keeping each answer's first row. A phone that gives up waiting can send answers
+ * again that the Sheet had in fact saved, and the cache that remembers answer IDs can lose a few when it's busy.
+ * installTimers runs this once a day, when hardly anyone is answering: saves wait while it works.
+ */
+function removeDuplicateVotes() {
+  const sheet = spreadsheet().getSheetByName("Votes");
+  if (!sheet || sheet.getLastRow() < 3) return;
+  const idColumn = VOTE_HEADERS.indexOf("vote_id") + 1;
+  withLock(() => {
+    const ids = sheet.getRange(2, idColumn, sheet.getLastRow() - 1, 1).getValues();
+    const seen = new Set();
+    const repeats = [];
+    ids.forEach(([id], i) => {
+      const key = String(id);
+      if (!key) return;
+      if (seen.has(key)) repeats.push(i + 2);
+      else seen.add(key);
+    });
+    // From the bottom up, a run of neighbouring rows at a time, so the row numbers still to delete stay right
+    for (let end = repeats.length - 1; end >= 0;) {
+      let start = end;
+      while (start > 0 && repeats[start - 1] === repeats[start] - 1) start--;
+      sheet.deleteRows(repeats[start], end - start + 1);
+      end = start - 1;
+    }
+    Logger.log(`Removed ${repeats.length} answers saved twice`);
+  }, CLEANUP_WAIT_MS);
 }
 
 /**
@@ -390,12 +426,13 @@ function writeRows(name, headers, rows, found) {
 /**
  * Runs a function while holding the script lock, so two requests can't write over each other.
  * @param {Function} fn - What to run.
+ * @param {number} [wait] - How long to wait for the lock, in milliseconds.
  * @returns {*} What it returns.
- * @throws {Error} BUSY when another save held the lock for longer than SAVE_WAIT_MS.
+ * @throws {Error} BUSY when another request held the lock for longer than that.
  */
-function withLock(fn) {
+function withLock(fn, wait = SAVE_WAIT_MS) {
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(SAVE_WAIT_MS)) throw new Error(BUSY);
+  if (!lock.tryLock(wait)) throw new Error(BUSY);
   try {
     const result = fn();
     // Write buffered changes before letting the next request in, or it can read a stale last row and

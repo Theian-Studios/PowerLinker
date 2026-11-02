@@ -4,7 +4,7 @@ import { Hint } from "../Models/Hint";
 import { CONTEXT, ContextState } from "../Models/Context";
 import getLambdaURL, { getLambdaCredentials } from "../Services/getLambdaURL";
 import { forgetAnswers, rememberAnswers, sheetsBeacon, sheetsPost, storedAnswers, usingSheets } from "../Services/sheetsApi";
-import { retryDelay } from "../Services/network";
+import { retryDelay, SAVE_TIMEOUT_MS } from "../Services/network";
 
 /** One answer waiting to be sent. Its ID lets the backend recognize the same answer sent twice. */
 export interface QueuedVote {
@@ -198,7 +198,7 @@ export default function useQueue(
      */
     const queueData = async (items: QueueItem[], keepalive: boolean) => {
         if (usingSheets) {
-            const answer = await sheetsPost({ action: "votes", items }, { keepalive }) as { added?: unknown } | null;
+            const answer = await sheetsPost({ action: "votes", items }, { keepalive, timeoutMs: SAVE_TIMEOUT_MS }) as { added?: unknown } | null;
             // The script says how many it added; anything else (busy, or an error page) means try again later
             if (typeof answer?.added !== "number") throw new Error("The Sheet didn't save the answers");
             return;

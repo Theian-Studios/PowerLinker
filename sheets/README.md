@@ -85,10 +85,14 @@ read is missing or empty, rather than writing empty Hints or Checks tabs.
 After changing `Code.gs`, use Deploy → Manage deployments → edit → Version: New version, so the URL stays
 the same.
 
-5. Run `installKeepWarm` once in the editor (pick it in the function menu, then Run) and allow the
+5. Run `installTimers` once in the editor (pick it in the function menu, then Run) and allow the
    permission to manage triggers. It adds a timer that runs `keepWarm` every 5 minutes, which reads a page
-   of hints and a check hint so the script and its cache don't go cold between volunteers. Running it again
-   replaces the timer rather than adding a second one; Triggers (clock icon) shows it.
+   of hints and a check hint so the script and its cache don't go cold between volunteers, and one that
+   runs `removeDuplicateVotes` at 3 every morning. A phone that gives up waiting on a busy Sheet can send
+   answers again that were in fact saved; about 1 in 100 got through twice when 60 people answered every
+   2 seconds, and this removes them, keeping each answer's first row. Running `installTimers` again
+   replaces the timers rather than adding more; Triggers (clock icon) shows them. Run
+   `removeDuplicateVotes` by hand any time; saves wait while it works.
 
 ## The cache
 

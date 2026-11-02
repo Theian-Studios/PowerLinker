@@ -87,17 +87,17 @@ export function shouldAskName(): boolean {
  * preflight, which Apps Script can't answer; the script reads it as JSON. It gives up after the usual time
  * limit: Google has been seen holding a request for minutes.
  * @param {Record<string, unknown>} body - The action and its data; the voter ID and name are added.
- * @param {{ keepalive?: boolean }} [options] - Set keepalive to let the request finish after the page closes.
+ * @param {{ keepalive?: boolean; timeoutMs?: number }} [options] - Set keepalive to finish after the page closes, timeoutMs to wait longer.
  * @returns {Promise<unknown>} The script's JSON answer.
  */
-export async function sheetsPost(body: Record<string, unknown>, options: { keepalive?: boolean } = {}): Promise<unknown> {
+export async function sheetsPost(body: Record<string, unknown>, options: { keepalive?: boolean; timeoutMs?: number } = {}): Promise<unknown> {
   if (!SHEETS_URL) throw new Error("No Sheets URL configured");
   const response = await fetch(SHEETS_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ ...body, voter: voterId(), name: volunteerName() }),
     keepalive: options.keepalive,
-    signal: timeoutSignal(REQUEST_TIMEOUT_MS),
+    signal: timeoutSignal(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`Sheets request failed: ${response.status}`);
   return response.json();
