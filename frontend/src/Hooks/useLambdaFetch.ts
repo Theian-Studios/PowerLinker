@@ -122,7 +122,9 @@ interface EarlyRequest {
 
 /**
  * Takes over the request index.html started for this same page of hints, once. If it asked for something
- * else (the volunteer's place changed) or failed, the page is asked for again as usual.
+ * else (the volunteer's place changed), failed, or hasn't answered within the app's usual time limit, the
+ * page is asked for again as usual: Google has been seen holding a request for minutes, and index.html's
+ * request has no limit of its own.
  * @param {string} path - The hints path with its query, as this app would ask for it.
  * @returns {Promise<{ ok: boolean; data?: unknown }> | undefined} Its answer, or undefined to ask normally.
  */
@@ -130,7 +132,8 @@ function takeEarlyRequest(path: string): Promise<{ ok: boolean; data?: unknown }
   const early = (window as { powerlinkerFirstHints?: EarlyRequest }).powerlinkerFirstHints;
   (window as { powerlinkerFirstHints?: EarlyRequest }).powerlinkerFirstHints = undefined;
   if (!usingSheets || !early || early.query !== path.slice(path.indexOf("?"))) return undefined;
-  return early.response.then((answer) => answer ?? loadPage(path));
+  const timedOut = new Promise<null>((resolve) => setTimeout(() => resolve(null), HINTS_TIMEOUT_MS));
+  return Promise.race([early.response, timedOut]).then((answer) => answer ?? loadPage(path));
 }
 
 /**
