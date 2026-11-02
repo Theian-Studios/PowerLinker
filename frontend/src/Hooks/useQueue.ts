@@ -180,6 +180,10 @@ export default function useQueue(
             });
     }, [votes, retryTick]);
 
+    // The latest version, which has the session ID; the first render's still has the blank placeholder
+    const latestQueueItems = useRef(getQueueItems);
+    latestQueueItems.current = getQueueItems;
+
     // On the public site, answers still waiting when the page closes are sent with a beacon, which the
     // browser finishes after the page is gone. The Sheet ignores any it already has.
     useEffect(() => {
@@ -189,7 +193,7 @@ export default function useQueue(
          */
         const flush = () => {
             if (latestVotes.current.length === 0) return;
-            sheetsBeacon({ action: "votes", items: getQueueItems(latestVotes.current) });
+            sheetsBeacon({ action: "votes", items: latestQueueItems.current(latestVotes.current) });
         };
         window.addEventListener("pagehide", flush);
         return () => window.removeEventListener("pagehide", flush);

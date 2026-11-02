@@ -63,11 +63,17 @@ export async function asyncUseHintList<T = unknown>(
     // On the public site, a volunteer with no saved place starts at a random hint the Sheet picks
     ...(usingSheets && lastInsertTime < 0 ? { start: "random" } : {}),
   });
-  const response = await fetch(getLambdaURL(path), {
-    method: "GET",
-    credentials: getLambdaCredentials(),
-    signal: timeoutSignal(HINTS_TIMEOUT_MS),
-  });
+  // The check hint is asked for at the same time as the page, so the first hint doesn't wait on two requests
+  // in a row (each takes a second or two on the Sheet)
+  // TODO: add ?correct=true/false if we want a specific true/false dummy hint
+  const [response, checkHint] = await Promise.all([
+    fetch(getLambdaURL(path), {
+      method: "GET",
+      credentials: getLambdaCredentials(),
+      signal: timeoutSignal(HINTS_TIMEOUT_MS),
+    }),
+    fetchCheckHint(recordType),
+  ]);
 
   if (!response.ok) {
     return { error: new Error("Failed to fetch hints") };
@@ -78,22 +84,30 @@ export async function asyncUseHintList<T = unknown>(
   // No real hints left: don't pad the response with a lone dummy hint
   if (Array.isArray(data) && data.length === 0) return { data: [] as T };
 
-  // TODO: add ?correct=true/false if we want a specific true/false dummy hint
-  const response2 = await fetch(getLambdaURL(hintsUrl({ dummy: true, record_type: recordType })), {
-    method: "GET",
-    credentials: getLambdaCredentials(),
-    signal: timeoutSignal(HINTS_TIMEOUT_MS),
-  });
-
-  if (!response2.ok) {
-    return { error: new Error("Failed to fetch dummy hint") };
-  }
-
-  const data2 = await response2.json();
-  // The check hint goes at a random spot in the page, so it isn't always every 11th hint
+  // The check hint goes at a random spot in the page, so it isn't always every 11th hint. Without one, the
+  // real hints still show; the next page brings another.
   const hints = Array.isArray(data) ? [...data] : [data];
-  hints.splice(Math.floor(Math.random() * (hints.length + 1)), 0, data2);
+  if (checkHint) hints.splice(Math.floor(Math.random() * (hints.length + 1)), 0, checkHint);
   return { data: hints as T };
+}
+
+/**
+ * Gets one check hint, whose answer is known.
+ * @param {string} recordType - The type of hint to check with.
+ * @returns {Promise<unknown>} The check hint, or undefined if it couldn't be loaded.
+ */
+async function fetchCheckHint(recordType: string): Promise<unknown> {
+  try {
+    const response = await fetch(getLambdaURL(hintsUrl({ dummy: true, record_type: recordType })), {
+      method: "GET",
+      credentials: getLambdaCredentials(),
+      signal: timeoutSignal(HINTS_TIMEOUT_MS),
+    });
+    return response.ok ? await response.json() : undefined;
+  } catch (error) {
+    console.error("Error fetching a check hint:", error);
+    return undefined;
+  }
 }
 
 /**

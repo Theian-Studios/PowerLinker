@@ -79,8 +79,9 @@ export default function Home(): ReactElement {
     // eslint-disable-next-line
   }, [context.hintQue.length]);
 
+  // A div, since the layout's <main> already wraps every page
   return (
-    <main className="page-home">
+    <div className="page-home">
       {typeof newDummyData === "string" ? (
         <div>
           <div className="hint-message">{"Hint message"}</div>
@@ -110,6 +111,6 @@ export default function Home(): ReactElement {
           onRetry={() => fetchHints(savedCursor(), false)}
         />
       )}
-    </main>
+    </div>
   );
 }

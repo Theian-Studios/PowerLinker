@@ -15,6 +15,8 @@ import { getPersons } from "../../Services/getPersons.ts";
 import { saveCursor, usingSheets } from "../../Services/sheetsApi.ts";
 
 export const HINTS_PER_REQUEST = 10;
+/** Hints asked for when nothing is on screen yet: enough to fill the queue in one request instead of two. */
+const FIRST_HINTS_PER_REQUEST = 20;
 
 /**
  * Gets the key that tells hints apart. The Sheet's hint ID comes first, since a check hint can be
@@ -57,6 +59,9 @@ export function useHomeHandlers({
         useRef<(lastInsertTime?: number, silent?: boolean) => Promise<void>>();
     // Each request gets a number; a response is ignored if a newer request (like a hint type switch) started since
     const requestId = useRef(0);
+    // The hints already queued or answered as of the last render, to tell whether a page brought new ones
+    const latestContext = useRef(context);
+    latestContext.current = context;
 
     /**
      * Gets hints from the backend and appends them to the hint queue.
@@ -72,7 +77,7 @@ export function useHomeHandlers({
         try {
             awaitingHints.current = true;
             const hintsResponse = await asyncUseHintList(
-            HINTS_PER_REQUEST,
+            silent ? HINTS_PER_REQUEST : FIRST_HINTS_PER_REQUEST,
             lastInsertTime,
             hintType
             );
@@ -82,14 +87,19 @@ export function useHomeHandlers({
             if (hintsResponse.data) {
             setLoadError(false);
             const hints: Hint[] = getPersons(hintsResponse);
-            let realNew = 0;
+            // Counted here rather than in the update below, which React may run later: counted there, a page of
+            // new hints could look like none and set off a second, full-screen load right after the first
+            const alreadyHere = new Set([
+                ...latestContext.current.hintQue.map(hintKey),
+                ...latestContext.current.reviewedHints.map(hintKey),
+            ]);
+            const realNew = hints.filter((h) => !h.dummy && !alreadyHere.has(hintKey(h))).length;
             setContext((prev) => {
                 const seenIds = new Set([
                 ...prev.hintQue.map(hintKey),
                 ...prev.reviewedHints.map(hintKey),
                 ]);
                 const unseen = hints.filter((h) => !h.dummy && !seenIds.has(hintKey(h)));
-                realNew = unseen.length;
                 // A check hint only comes along with new real hints, so a page of already-seen ones adds nothing.
                 // The page's order is kept, so the check hint stays at the random spot it was given.
                 const newHints = unseen.length > 0 ? hints.filter((h) => h.dummy || unseen.includes(h)) : [];

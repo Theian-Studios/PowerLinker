@@ -17,6 +17,9 @@ export interface CompareRow {
   reasonSide?: "record" | "tree";
   /** Shows the reason under a matching row too, where it would otherwise only be a tooltip. */
   showReason?: boolean;
+  /** A place as given, when the row shows it shortened; shown on hover. */
+  recordFull?: string;
+  treeFull?: string;
 }
 
 /** Row labels for each event type: [date label, place label]. */
@@ -286,7 +289,9 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
     const status = toStatus(scored.highlight);
     // A comparison's own reason ("Different states: Kansas, Louisiana") beats the generic one
     const reason = scored.reason ?? reasonFor(kind, status, record, tree);
-    return { label, kind, record, tree, status, reason, ...(scored.side ? { reasonSide: scored.side } : {}) };
+    // A matching name spelled two ways says so under it, since a check beside two spellings can look like a mistake
+    const showReason = kind === "name" && status === "ok" && Boolean(scored.reason);
+    return { label, kind, record, tree, status, reason, ...(scored.side ? { reasonSide: scored.side } : {}), ...(showReason ? { showReason } : {}) };
   }
 
   const rows: CompareRow[] = [row(
@@ -375,8 +380,22 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
     // Residences are compared by county and state, since census places name wards and districts
     const placeScore = type === "residence" ? scoreResidence(recordPlace, treePlace, !differentTimes) : scorePlace(recordPlace, treePlace);
 
-    // Living somewhere else years apart is ordinary, so those residences tell them nothing; only shown when they agree
-    if (differentTimes && (typeof placeScore === "object" ? placeScore.highlight : placeScore) === HighlightType.None) continue;
+    // Living somewhere else years apart is ordinary, so it's no conflict, but it's still shown, without a mark:
+    // hidden, a home could only ever count toward the same person, never against
+    if (differentTimes && (typeof placeScore === "object" ? placeScore.highlight : placeScore) === HighlightType.None) {
+      if (recordPlace && treePlace) {
+        rows.push({
+          label: placeLabel,
+          kind: "place",
+          record: withYear(recordDate, recordPlace),
+          tree: withYear(treeDate, treePlace),
+          status: "none",
+          reason: "Moved, or a different person",
+          showReason: true,
+        });
+      }
+      continue;
+    }
 
     // Residence years that differ can't be compared, so instead of a row of their own ("1930 | 1940") they
     // go in front of each place: "1930 · Fall River, Bristol, Massachusetts"
@@ -419,7 +438,55 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
     if (!flagCommonName || exactBirth) rows[0] = { ...name, status: "ok", reason: undefined };
   }
 
-  return rows;
+  return rows.map(withShortPlaces);
+}
+
+/** Census labels for a part of town, which say nothing to a volunteer: "Ward 13", "Assembly District 7", "Area B". */
+const TOWN_PART = /^(ward|assembly district|election precinct|justice precinct|precinct|beat|district|enumeration district|militia district|supervisor'?s district|civil district|tract)\s+\S|^area\s+[a-z0-9]{1,3}$/i;
+
+/**
+ * Shortens a place for the table: the census's district numbers and wards go, a town written twice ("Cleveland,
+ * Cleveland City") shows once, and so does the country when it's the United States on both sides.
+ * @param place - The place, possibly with its year in front ("1930 · ...").
+ * @param dropCountry - Whether to leave out a final "United States".
+ * @returns The shorter place.
+ */
+function shortPlace(place: string, dropCountry: boolean): string {
+  const year = place.match(/^\d{4} · /)?.[0] ?? "";
+  const parts = place.slice(year.length).split(",")
+    .map((part) => part.replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim())
+    .filter((part) => part && !TOWN_PART.test(part));
+  /**
+   * A part without its periods and a final "City", to spot the same town written twice.
+   * @param part - One part of the place.
+   * @returns The part, simplified for comparing.
+   */
+  const bare = (part: string) => part.toLowerCase().replace(/\./g, "").replace(/\s+city$/, "");
+  const kept = parts.filter((part, i) => i === 0 || bare(part) !== bare(parts[i - 1]));
+  if (dropCountry && kept.length > 1 && kept[kept.length - 1].toLowerCase() === "united states") kept.pop();
+  return year + kept.join(", ");
+}
+
+/**
+ * Shows a place row's places shortened, keeping the full places for hovering. Done after scoring, which reads
+ * the places as given.
+ * @param row - A comparison row.
+ * @returns The row, with shorter places if it's a place row.
+ */
+function withShortPlaces(row: CompareRow): CompareRow {
+  if (row.kind !== "place") return row;
+  const given = [row.record, row.tree].filter((place): place is string => Boolean(place));
+  // Leaving out the country only when every place given is in the United States keeps "Ireland" against "New York" clear
+  const dropCountry = given.every((place) => /,\s*united states$/i.test(place.trim()));
+  const record = row.record ? shortPlace(row.record, dropCountry) : row.record;
+  const tree = row.tree ? shortPlace(row.tree, dropCountry) : row.tree;
+  return {
+    ...row,
+    record,
+    tree,
+    ...(record !== row.record ? { recordFull: row.record } : {}),
+    ...(tree !== row.tree ? { treeFull: row.tree } : {}),
+  };
 }
 
 /** Youngest and oldest ages at which someone is believably a parent. */
@@ -496,11 +563,16 @@ export function sameTown(a?: string, b?: string): string | undefined {
    * @returns The lowercase towns with their original spelling, and the county and state.
    */
   const split = (place: string) => {
-    const parts = place.replace(/^\d{4} · /, "").split(",").map((part) => part.trim()).filter(Boolean);
+    // The 1930 census adds the districts to big cities ("Cleveland (Districts 1-250)"), and "St." and "St"
+    // are the same word, so neither keeps a town from matching
+    const parts = place.replace(/^\d{4} · /, "").split(",")
+      .map((part) => part.replace(/\([^)]*\)/g, "").replace(/\./g, "").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
     // US places end with county, state and country; with fewer parts there's no town to compare
     if (parts[parts.length - 1]?.toLowerCase() === "united states") parts.pop();
     if (parts.length < 3) return undefined;
-    const region = parts.slice(-2).join(",").toLowerCase();
+    // "St Louis (Independent City)" and "St. Louis City" are the same county
+    const region = parts.slice(-2).map((part) => part.toLowerCase().replace(PLACE_KIND, "")).join(",");
     const towns = new Map(parts.slice(0, -2).map((part) => [part.toLowerCase().replace(PLACE_KIND, ""), part.replace(PLACE_KIND, "")]));
     return { region, towns };
   };

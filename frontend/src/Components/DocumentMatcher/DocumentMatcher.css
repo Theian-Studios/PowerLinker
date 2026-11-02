@@ -422,12 +422,6 @@
     padding-bottom: 2em;
 }
 
-@media (max-width: 420px) {
-    .question {
-        font-size: 1.45rem;
-    }
-}
-
 /* Wide desktop: comparison on the left, evidence and help in a sidebar on the right */
 
 @media (min-width: 1100px) {
@@ -454,4 +448,11 @@
     .conflicts-below {
         left: calc(50% - 176px);
     }
+}
+
+/* "Person 1 ↗  Person 2 ↗" on two people from the tree, or one "Check source ↗" */
+.source-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
 }

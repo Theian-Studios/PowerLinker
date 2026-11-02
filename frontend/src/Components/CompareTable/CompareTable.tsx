@@ -63,10 +63,11 @@ export function CompareFact({ row, first, notOnTree, sides }: {
   return (
     <div className={`compare-row compare-row--${row.status}${first ? " compare-row--name" : ""}`} role="row">
       <span className="compare-label" role="rowheader">{row.label}</span>
-      <span className="compare-value" role="cell">
+      {/* A shortened place shows in full on hover */}
+      <span className="compare-value" role="cell" title={row.recordFull}>
         {row.record ? row.record : <span className="compare-missing" aria-label="Not given">–</span>}
       </span>
-      <span className="compare-value" role="cell">
+      <span className="compare-value" role="cell" title={row.treeFull}>
         {row.tree ? row.tree : (first && notOnTree
           ? <span className="compare-missing">{sides[1] === "Tree" ? "not on tree" : "not listed"}</span>
           : <span className="compare-missing" aria-label="Not given">–</span>)}

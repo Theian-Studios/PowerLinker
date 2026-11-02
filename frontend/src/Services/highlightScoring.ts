@@ -1,5 +1,7 @@
 import FlexibleDate from "flexibledatets";
-import { compareTwoNames } from "namecomparator-ts/dist/NameComparatorTS/nameComparator.js";
+// Only the lab name comparator's list of name variants is used; its pronunciation and frequency data, with the
+// libraries it needs, were most of the app's download
+import nameVariants from "namecomparator-ts/dist/data/nicknames/nameVariants.json";
 import { HighlightType } from "../Models/HighlightType";
 
 /**
@@ -35,19 +37,115 @@ export function highlightFromScore(
   return HighlightType.Red;
 }
 
+/** Each name in the lab's variant lists and the app's own (Tim and Timothy, Abe and Abraham), with the lists it's in. */
+let variantGroups: Map<string, number[]> | undefined;
+
 /**
- * Compares two names and returns a confidence score.
+ * Gets the variant lists by name, building them the first time.
+ * @returns Each name with the numbers of the lists it's in.
+ */
+function variantsByName(): Map<string, number[]> {
+  if (variantGroups) return variantGroups;
+  const groups = [...Object.values(nameVariants as Record<string, string[]>), ...NICKNAMES];
+  variantGroups = new Map();
+  groups.forEach((names, group) => {
+    for (const name of names) variantGroups!.set(name, [...(variantGroups!.get(name) ?? []), group]);
+  });
+  return variantGroups;
+}
+
+/** Score for two words that sound alike by their sound codes but are spelled further apart. */
+const SOUNDS_ALIKE_SCORE = 80;
+
+/** Letters that don't split into a plain letter and an accent. */
+const PLAIN_LETTERS: Record<string, string> = { "ı": "i", "ł": "l", "ø": "o", "ß": "ss", "æ": "ae", "œ": "oe", "đ": "d" };
+
+/**
+ * Splits a name into plain lowercase words: accents and apostrophes dropped ("O'Keefe" is "okeefe"), and
+ * hyphens and other marks between words.
+ * @param name - The name as written.
+ * @returns Its words.
+ */
+function nameWords(name: string): string[] {
+  return name.toLowerCase().replace(/[ıłøßæœđ]/g, (letter) => PLAIN_LETTERS[letter]).normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/['\u2019\u2018`]/g, "").replace(/[^a-z]+/g, " ").split(" ").filter(Boolean);
+}
+
+/**
+ * Scores how much of two words' spelling they share, in order: twice the longest common subsequence over
+ * their total length, so "isidore" and "isadore" score 86.
+ * @param a - One word.
+ * @param b - The other.
+ * @returns 0 to 100.
+ */
+function spellingRatio(a: string, b: string): number {
+  if (!a.length || !b.length) return 0;
+  let previous = new Array(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [0];
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = a[i - 1] === b[j - 1] ? previous[j - 1] + 1 : Math.max(previous[j], row[j - 1]);
+    }
+    previous = row;
+  }
+  return (200 * previous[b.length]) / (a.length + b.length);
+}
+
+/**
+ * Reduces a word to its consonants, with each run of vowels as one "*": "silberstein" to "s*lb*rst*n".
+ * Census takers wrote vowels by ear, so names often differ only there.
+ * @param word - One word of a name.
+ * @returns Its consonant outline.
+ */
+function consonantOutline(word: string): string {
+  return word.replace(/[aeiouy]+/g, "*").replace(/(.)\1+/g, "$1");
+}
+
+/**
+ * Scores two words of a name: the same or known variants of each other (Abe and Abraham) score 100, an
+ * initial that fits 80, and otherwise their spelling and consonants, raised for names that sound alike.
+ * @param a - A word from one name.
+ * @param b - A word from the other.
+ * @returns 0 to 100.
+ */
+function wordSimilarity(a: string, b: string): number {
+  if (a === b) return 100;
+  const groups = variantsByName().get(a);
+  if (groups && variantsByName().get(b)?.some((group) => groups.includes(group))) return 100;
+  if (a.length === 1 || b.length === 1) return a[0] === b[0] ? 80 : 0;
+  const score = 0.6 * spellingRatio(a, b) + 0.4 * spellingRatio(consonantOutline(a), consonantOutline(b));
+  const sound = soundCode(a);
+  return sound && sound === soundCode(b) ? Math.max(score, SOUNDS_ALIKE_SCORE) : score;
+}
+
+/**
+ * Compares two names and returns a confidence score. Each word is paired with its best match in the other
+ * name, and a name is only as close as its weakest pair: Meyer and Ralph Abramowitz share a surname but not a
+ * given name. Extra words, like a middle name only one side has, don't count against it. A name written as
+ * one word on one side is also compared joined up, so "Von Stein" can match "Fonstein".
  * @param nameOne - First name to compare.
  * @param nameTwo - Second name to compare.
- * @returns Confidence score from 0 to 100, or 0 on failure.
+ * @returns Confidence score from 0 to 100, or 0 when either is blank.
  */
 function getNameComparisonConfidence(nameOne: string, nameTwo: string): number {
-  try {
-    const result = compareTwoNames(nameOne, nameTwo);
-    return result.mostRecentAttemptScore;
-  } catch {
-    return 0;
+  const one = nameWords(nameOne);
+  const two = nameWords(nameTwo);
+  if (one.length === 0 || two.length === 0) return 0;
+  const pairs = one.flatMap((a, i) => two.map((b, j) => ({ i, j, score: wordSimilarity(a, b) })))
+    .sort((x, y) => y.score - x.score);
+  const usedOne = new Set<number>();
+  const usedTwo = new Set<number>();
+  let weakest = 100;
+  for (const { i, j, score } of pairs) {
+    if (usedOne.has(i) || usedTwo.has(j)) continue;
+    usedOne.add(i);
+    usedTwo.add(j);
+    weakest = Math.min(weakest, score);
   }
+  const joined = one.length !== two.length && Math.min(one.length, two.length) === 1
+    ? wordSimilarity(one.join(""), two.join(""))
+    : 0;
+  return Math.max(weakest, joined);
 }
 
 /**
@@ -105,6 +203,8 @@ const PLACE_ALIASES: Record<string, string> = {
   "two sicilies": "italy",
   // The Republic of Texas became the state, so "Austin, Republic of Texas" is in Texas
   "republic of texas": "texas",
+  // FamilySearch's name for the colonies before 1776, which it sometimes gives births long after
+  "british colonial america": "united states",
 };
 
 /**
@@ -112,7 +212,8 @@ const PLACE_ALIASES: Record<string, string> = {
  * a person born in Warsaw in 1890 was born in the Russian Empire and in Poland.
  */
 const BORDER_GROUPS: string[][] = [
-  ["russia", "poland", "lithuania", "latvia", "estonia", "finland", "ukraine", "belarus", "bessarabia", "romania"],
+  // Galicia was Austrian, but many who left it gave Russia or Poland, as the border moved over their lives
+  ["russia", "poland", "lithuania", "latvia", "estonia", "finland", "ukraine", "belarus", "bessarabia", "romania", "galicia"],
   ["germany", "prussia", "poland", "austria", "alsace", "lorraine", "france", "denmark"],
   ["austria", "hungary", "czechoslovakia", "poland", "galicia", "yugoslavia", "croatia", "slovenia", "romania", "italy", "ukraine", "slovakia"],
   ["united kingdom", "ireland"],
@@ -136,6 +237,8 @@ function placeParts(place: string): string[] {
     .map((part) => part.replace(/\s+(county|co|parish)$/, ""))
     // Census wards, districts and precincts name a part of town, not a different place
     .filter((part) => part !== "" && !CENSUS_SUBDIVISION.test(part))
+    // "Massachusetts Bay Colony" and "Connecticut Colony" are the states
+    .map((part) => part.replace(/(\s+bay)?\s+colony$/, ""))
     .map(withoutTownSuffix)
     .map((part) => PLACE_ALIASES[part] ?? part);
   const last = parts[parts.length - 1] ?? "";
@@ -458,8 +561,11 @@ export function soundCode(name: string): string {
   return /[1-9]/.test(code) ? code.padEnd(6, "0").slice(0, 6) : "";
 }
 
-/** Surname similarity at which two spellings count as the same surname. */
-const SAME_SURNAME_SCORE = 80;
+/**
+ * Surname similarity at which two spellings count as the same surname, set so about the same spellings count
+ * as with the lab's name comparator this replaced.
+ */
+const SAME_SURNAME_SCORE = 81;
 
 /** Common short forms and spellings of given names, each listed with the forms it matches. */
 const NICKNAMES: string[][] = [
@@ -495,6 +601,11 @@ const NICKNAMES: string[][] = [
   ["albert", "al", "bert"], ["benjamin", "ben", "benny"], ["patrick", "pat", "paddy"],
   ["daniel", "dan", "danny"], ["david", "dave"], ["george", "geo", "giorgio", "jorge"],
   ["johanna", "joanna", "joan", "jennie"], ["jane", "jennie", "jenny", "janie", "jean"], ["lucinda", "lula", "cindy", "lucy"], ["louisa", "lula", "lou", "louise"], ["emma", "emmy"], ["minnie", "wilhelmina", "mina"],
+  ["stephen", "steven", "steve", "stevie"], ["augusta", "gussie", "gussy", "augustina"], ["cecilia", "cecelia", "cecile", "celia"], ["rebecca", "becky", "beckie", "reba", "rivka"], ["dorothy", "dorie", "dolly"],
+  ["edward", "ed", "edd", "eddy"], ["magdalene", "magdalena", "magdelene", "magdeline", "magdaline", "magda", "maggie", "madeline"],
+  // Yiddish and Hebrew names and the English ones their bearers took in America
+  ["meyer", "meier", "myer", "mayer", "max"], ["moses", "moshe", "moishe", "morris", "maurice"], ["hyman", "chaim", "hymie"],
+  ["solomon", "sol", "shlomo", "salomon"], ["isidore", "isadore", "izzy", "isador"],
 ];
 
 /**
@@ -557,7 +668,8 @@ export function scoreName(
     && givenParts(recordFirst)[0] === givenParts(treeFirst)[0] && recordLast.trim().toLowerCase() === treeLast.trim().toLowerCase()) {
     return { highlight: HighlightType.Yellow, reason: "Common name" };
   }
-  if (recordName.toLowerCase().replace(/[.]/g, "") === treeName.toLowerCase().replace(/[.]/g, "")) {
+  // Capitals, periods, accents and curly apostrophes don't make names differ: "D'Avanzo" and "D’Avanzo"
+  if (nameWords(recordName).join(" ") === nameWords(treeName).join(" ")) {
     return { highlight: HighlightType.Green };
   }
 
@@ -584,8 +696,10 @@ export function scoreName(
     if (surnameSame) {
       if (!middleSame) return { highlight: HighlightType.Yellow, reason: "Different middle name" };
       if (firstInitial) return { highlight: HighlightType.Yellow, reason: "Only an initial" };
-      return firstA !== firstB || recordLast.toLowerCase() !== treeLast.toLowerCase()
-        ? { highlight: HighlightType.Green, reason: "Same name, written differently" }
+      // Said under the name, so a green check beside two spellings doesn't look like a mistake
+      if (firstA !== firstB) return { highlight: HighlightType.Green, reason: "Same name, written differently" };
+      return nameWords(recordLast).join("") !== nameWords(treeLast).join("")
+        ? { highlight: HighlightType.Green, reason: "Spelled differently" }
         : { highlight: HighlightType.Green };
     }
     if (surnameClose) return { highlight: HighlightType.Yellow, reason: surnameScore >= 60 ? "Similar spelling" : "Sounds alike" };
@@ -604,7 +718,17 @@ export function scoreName(
   const allA = [firstA, ...middleA];
   const allB = [firstB, ...middleB];
   const goesByMiddle = allA.some((x) => x.length > 1 && allB.some((y) => y.length > 1 && sameGivenName(x, y)));
-  if (goesByMiddle && (surnameClose || female)) return { highlight: HighlightType.Yellow, reason: "Possibly goes by middle name" };
+  /**
+   * Checks whether two given names could be one: the same name, or an initial and a name it starts.
+   * @param x - A given name or initial on one side.
+   * @param y - One on the other side.
+   * @returns True when they fit.
+   */
+  const fits = (x: string, y: string) => (x.length === 1 || y.length === 1 ? x[0] === y[0] : sameGivenName(x, y));
+  // First and middle names swapped, written out or as initials: "Caroline G" and "Gail C"
+  const swapped = middleA.length > 0 && middleB.length > 0
+    && middleB.some((y) => fits(firstA, y)) && middleA.some((x) => fits(x, firstB));
+  if ((goesByMiddle || swapped) && (surnameClose || female)) return { highlight: HighlightType.Yellow, reason: "Possibly goes by middle name" };
 
   const firstScore = getNameComparisonConfidence(firstA, firstB);
   if (firstScore >= 60 && (surnameClose || female)) return { highlight: HighlightType.Yellow, reason: "Similar names" };

@@ -208,8 +208,9 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   }, [context.hintQue[0]]);
 
   useEffect(() => {
-      // if no warnings are given, we can skip this
-      if (context.strikes === 0){
+      // if no warnings are given, we can skip this; strikes loaded from this session after a reload aren't
+      // a new miss, so the warning only shows once something has been answered on this page
+      if (context.strikes === 0 || context.reviewedHints.length === 0){
         return;
       }
 
@@ -217,11 +218,13 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       // add a cautionary popup
       setWarnUser(true);
 
+    // Only a change in strikes should warn, not each answer after one
+    // eslint-disable-next-line
   }, [context.strikes]);
 
   useEffect(() => {
-    if (!tree?.persons) return console.error("tree persons is null or undefined");
-    if (!record?.persons) return console.error("record persons is null or undefined");
+    // Nothing to pair until the first hint arrives; getPersons already reports malformed hints
+    if (!tree?.persons || !record?.persons) return;
 
     const combinedRecordPeople = record.persons
     const combinedTreePeople = tree.persons
@@ -328,8 +331,8 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
 
   // Voting pauses while the slow-down message is up, until the user clicks "Got it"
   const votingBlocked = !buttonsEnabled || showNudge || noHint;
-  // Going back to the last hint still works when there are no new ones
-  const previousBlocked = !buttonsEnabled || showNudge;
+  // Going back to the last hint still works when there are no new ones, but not before anything's been answered
+  const previousBlocked = !buttonsEnabled || showNudge || context.reviewedHints.length === 0;
 
   // Shown above the vote buttons
   const nudge = showNudge && !loading ? (
@@ -385,8 +388,9 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   // The main person is sorted first; everyone after them is family
   const family = useMemo(() => people.slice(1), [people]);
 
-  // Conflicting facts on the hint (main person and family), used to grade "Same person" for the streak
-  const conflictCount = useMemo(() => people.reduce((sum, person) => sum + person.rows.filter((row) => row.status === "bad").length, 0), [people]);
+  // Conflicting facts on the main person, used to grade "Same person" for the streak. Relatives aren't counted:
+  // they're paired by first name only, so their conflicts are often a misread surname or a different relative.
+  const conflictCount = useMemo(() => (people[0]?.rows ?? []).filter((row) => row.status === "bad").length, [people]);
   // Each new hint starts without the Not sure prompt
   useEffect(() => {
     setAskReason(false);
@@ -397,6 +401,13 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   const matchName = people[0]?.rows[0]?.tree ?? people[0]?.rows[0]?.record;
   // Possible duplicates compare two people already on the tree, not a record with the tree
   const isDuplicate = hint?.type === "possible_duplicate";
+  // Where to check the facts: a record's source, or for two people on the tree, each one's own page
+  const sources: { label: string; url?: string }[] = isDuplicate
+    ? [
+        { label: "Person 1", url: treePageUrl(matches[0]?.recordPerson.pid) ?? hint?.url },
+        { label: "Person 2", url: treePageUrl(matches[0]?.matchingTreePeople[matches[0].selectedCandidateIndex ?? 0]?.pid) },
+      ].filter((source) => source.url)
+    : hint?.url ? [{ label: "Check source", url: hint.url }] : [];
   const firstName = people[0]?.rows[0]?.record;
 
   // Relatives listed for both people whose facts agree. The same family is strong evidence of the same
@@ -542,10 +553,14 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
               </h2>
               <div className="hint-meta">
                 {hintTypeSelect}
-                {hint?.url && (
-                  <a className="check-source" href={hint.url} target="_blank" rel="noopener noreferrer" onClick={() => setSourceOpened(true)}>
-                    Check source ↗
-                  </a>
+                {sources.length > 0 && (
+                  <span className="source-links">
+                    {sources.map(({ label, url }) => (
+                      <a key={label} className="check-source" href={url} target="_blank" rel="noopener noreferrer" onClick={() => setSourceOpened(true)}>
+                        {label} ↗
+                      </a>
+                    ))}
+                  </span>
                 )}
               </div>
               {missingVitals.map(({ who, url, facts }) => (
@@ -633,19 +648,24 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                   ‹ Back to answers
                 </button>
                 {/* The original record may settle it, unless they've already looked */}
-                {hint?.url && !sourceOpened && (
-                  <a
-                    className="vote-link unsure-source"
-                    href={hint.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => {
-                      setSourceOpened(true);
-                      setAskReason(false);
-                    }}
-                  >
-                    {isDuplicate ? "Check their pages" : "Check source"} ↗
-                  </a>
+                {sources.length > 0 && !sourceOpened && (
+                  <span className="source-links">
+                    {sources.map(({ label, url }) => (
+                      <a
+                        key={label}
+                        className="vote-link unsure-source"
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          setSourceOpened(true);
+                          setAskReason(false);
+                        }}
+                      >
+                        {label} ↗
+                      </a>
+                    ))}
+                  </span>
                 )}
               </div>
             </div>

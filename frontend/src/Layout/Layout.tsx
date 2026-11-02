@@ -101,7 +101,7 @@ export function Layout() {
                         <p>
                             {context.streakLost === "check"
                                 ? "That was a check hint, and its answer was different."
-                                : "Too many facts conflicted for this to be the same person."}
+                                : "Too many of their own facts conflicted for this to be the same person."}
                         </p>
                     </div>
                 </div>
