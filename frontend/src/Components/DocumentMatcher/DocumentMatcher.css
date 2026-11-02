@@ -210,7 +210,25 @@
     transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
 .vote-btn:active:not(:disabled) {
-    transform: scale(0.98);
+    transform: scale(0.96);
+}
+/* A ripple spreads from where an answer was pressed (pressFeedback) */
+.vote-btn {
+    position: relative;
+    overflow: hidden;
+}
+.vote-ripples {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+}
+.vote-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
 }
 .vote-btn:disabled {
     opacity: 0.45;
@@ -241,9 +259,17 @@
 .vote-btn--yes:hover:not(:disabled) {
     background: var(--pl-olive);
 }
+/* The ✓ and ✕, drawn as lines so they can draw themselves on a press */
 .vote-mark {
-    font-size: 0.95em;
-    font-weight: 800;
+    flex: none;
+    width: 0.9em;
+    height: 0.9em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
     opacity: 0.85;
 }
 
@@ -455,4 +481,31 @@
     display: flex;
     flex-wrap: wrap;
     gap: 4px 16px;
+}
+
+/* Gray shapes where the question and table will be, while the first hints load */
+.hint-skeleton {
+    padding-top: 4px;
+}
+.skeleton {
+    border-radius: 8px;
+    background: linear-gradient(100deg, #efede6 30%, #f8f7f2 50%, #efede6 70%);
+    background-size: 300% 100%;
+    animation: skeleton-sheen 1.4s ease-in-out infinite;
+}
+.skeleton--title { height: 1.4rem; width: 92%; margin-bottom: 10px; }
+.skeleton--short { width: 58%; }
+.skeleton--note { height: 88px; margin: 16px 0; border-radius: 14px; }
+.skeleton--table { height: 320px; border-radius: 16px; }
+.skeleton-caption {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--pl-muted);
+}
+@keyframes skeleton-sheen {
+    from { background-position: 100% 0; }
+    to { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
 }

@@ -2,6 +2,7 @@ import "./HintSidebar.css";
 import { ReactElement, useContext, useEffect, useState } from "react";
 import { CompareRow, Status } from "../CompareTable/compareRows";
 import { CONTEXT, ContextState, STREAK_GOAL, STREAK_POINTS } from "../../Models/Context";
+import useStreakGlow from "../../Hooks/useStreakGlow";
 
 export interface PersonRows {
   heading: string;
@@ -37,6 +38,7 @@ function readHelpOpen(): boolean {
  */
 function SessionProgress(): ReactElement {
   const { context } = useContext(CONTEXT) as ContextState;
+  const { glow } = useStreakGlow();
   const done = context.streak;
   const progress = Math.min(1, done / STREAK_GOAL);
 
@@ -56,7 +58,7 @@ function SessionProgress(): ReactElement {
         aria-valuemax={STREAK_GOAL}
         aria-valuenow={done}
       >
-        <div className="streak-fill" style={{ width: `${progress * 100}%` }} />
+        <div className={`streak-fill${glow ? " is-growing" : ""}`} style={{ width: `${progress * 100}%` }} />
       </div>
       <p className="progress-sub">Missing a check hint starts the count over.</p>
     </section>

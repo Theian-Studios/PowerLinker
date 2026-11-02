@@ -1,6 +1,6 @@
 import "./DocumentMatcher.css";
 import { usingSheets } from "../../Services/sheetsApi";
-import { useEffect, useMemo, useRef, useState, useContext } from "react";
+import { MouseEvent, useEffect, useLayoutEffect, useMemo, useRef, useState, useContext } from "react";
 import CompareTable from "../CompareTable/CompareTable";
 import FamilySummary, { FamilyMember } from "../FamilySummary/FamilySummary";
 import { buildRows, familyTimelineRows, selfConflicts } from "../CompareTable/compareRows";
@@ -14,6 +14,7 @@ import { IPerson, Person } from "../../Models/Person.ts";
 import { sameGivenName } from "../../Services/highlightScoring.ts";
 import useSlowDownNudge from "../../Hooks/useSlowDownNudge.ts";
 import { haptic } from "../../Services/haptics.ts";
+import { animate, prefersReducedMotion } from "../../Services/motion.ts";
 import { UnsureReason } from "../../Hooks/useQueue.ts";
 
 /** Tree relationships a record relationship can match, since records are often less specific ("parent"). */
@@ -78,6 +79,36 @@ function blankFor(treePerson: Person): Person {
   return blank;
 }
 
+/**
+ * Gives an answer button a ripple from where it was pressed and draws its mark again, so the press is felt
+ * even before the next hint appears.
+ * @param event - The click on the button.
+ */
+function pressFeedback(event: MouseEvent<HTMLButtonElement>) {
+  if (prefersReducedMotion()) return;
+  const button = event.currentTarget;
+  const layer = button.querySelector(".vote-ripples");
+  const rect = button.getBoundingClientRect();
+  // A keyboard press has no pointer position, so it ripples from the middle
+  const x = event.detail === 0 ? rect.width / 2 : event.clientX - rect.left;
+  const y = event.detail === 0 ? rect.height / 2 : event.clientY - rect.top;
+  const size = Math.hypot(rect.width, rect.height) * 2;
+  if (layer) {
+    const ripple = document.createElement("span");
+    ripple.className = "vote-ripple";
+    Object.assign(ripple.style, { left: `${x - size / 2}px`, top: `${y - size / 2}px`, width: `${size}px`, height: `${size}px` });
+    layer.appendChild(ripple);
+    animate(ripple, [{ transform: "scale(0)", opacity: 0.3 }, { transform: "scale(1)", opacity: 0 }], { duration: 500, easing: "ease-out" })
+      .then(() => ripple.remove());
+  }
+  button.querySelectorAll(".vote-mark path").forEach((path) =>
+    animate(path, [{ strokeDashoffset: 20 }, { strokeDashoffset: 0 }], { duration: 240, easing: "ease-out" }));
+}
+
+/** Time between the pieces of a new hint appearing, top to bottom, and how many steps before the rest come together. */
+const ROW_STAGGER_MS = 20;
+const ROW_STAGGER_STEPS = 6;
+
 /** How long the answer buttons pause when a new hint appears. */
 const NEXT_HINT_PAUSE_MS = 350;
 
@@ -138,6 +169,9 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   const [record, setRecord] = useState<HintInfo | null>(null);
   const buttonsEnablingTimeout = useRef<ReturnType<typeof setTimeout>>();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Set by an answer, so the next hint builds itself in; Back just swaps
+  const answered = useRef<boolean>(false);
+  const shownOnce = useRef<boolean>(false);
   const BUTTONS_ENABLING_TIMEOUT_DURATION_MS = 700;
   const [warnUser, setWarnUser] = useState<boolean>(false);
   // "Not sure" asks why, and offers the original record unless they've already opened it for this hint
@@ -154,6 +188,8 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
    */
   function vote(value: -1 | 0 | 1, unsure?: UnsureReason) {
     haptic("tap");
+    // The next hint builds itself in, top to bottom, once it's on screen
+    answered.current = true;
     recordVote(value);
     // "Same person" on a hint with several conflicting facts is treated as a wrong answer for the streak
     // Matching family outweighs a few conflicting facts, so "Same person" isn't marked as likely wrong then
@@ -326,8 +362,32 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     return () => clearTimeout(timer);
   }, [currentHint, loading]);
 
+  // After an answer, the next hint starts from the top and builds itself top to bottom: the question, the notes,
+  // each row of the table, then the family, so the eye follows the facts in order. The first hint does the same
+  // over the loading shapes. Run before paint, once the new hint's rows are in, so the old ones never flash.
+  useLayoutEffect(() => {
+    const scroll = scrollContainerRef.current;
+    const main = scroll?.querySelector<HTMLElement>(".matcher-main");
+    if (!scroll || !main || matches.length === 0) return;
+    const fromAnswer = answered.current;
+    answered.current = false;
+    if (fromAnswer) scroll.scrollTop = 0;
+    if (!fromAnswer && shownOnce.current) return;
+    shownOnce.current = true;
+    if (prefersReducedMotion()) {
+      animate(main, [{ opacity: 0 }, { opacity: 1 }], { duration: 150, fill: "backwards" });
+      return;
+    }
+    const pieces = main.querySelectorAll<HTMLElement>(".question, .hint-meta, .source-tip, .compare-table > .compare-row, .family");
+    pieces.forEach((piece, i) => animate(piece, [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+      // 20 ms apart, with the later rows sharing the last step so a long hint isn't slow to finish
+      { duration: 120, delay: Math.min(i, ROW_STAGGER_STEPS) * ROW_STAGGER_MS, easing: "cubic-bezier(0, 0, 0.2, 1)", fill: "backwards" }));
+  }, [matches]);
+
   // With no hint on screen (load failed or none left), show a message instead of the last hint
   const noHint = !loading && context.hintQue.length === 0;
+  // The first hints are on their way: gray shapes stand in for the question and table
+  const waiting = loading && context.hintQue.length === 0;
 
   // Voting pauses while the slow-down message is up, until the user clicks "Got it"
   const votingBlocked = !buttonsEnabled || showNudge || noHint;
@@ -542,6 +602,17 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
               )}
             </div>
             </>
+          ) : waiting ? (
+            <div className="matcher-layout">
+              <div className="matcher-main hint-skeleton" role="status" aria-label="Loading hints">
+                <div className="skeleton skeleton--title" />
+                <div className="skeleton skeleton--title skeleton--short" />
+                <p className="skeleton-caption">Loading hints…</p>
+                <div className="skeleton skeleton--note" />
+                <div className="skeleton skeleton--table" />
+              </div>
+              <HintSidebar people={[]} />
+            </div>
           ) : (
             <div className="matcher-layout">
             <div className="matcher-main">
@@ -683,11 +754,13 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                 ‹ Back
               </button>
               <div className="vote-answers">
-                <button type="button" className="vote-btn vote-btn--no" onClick={() => vote(-1)} disabled={votingBlocked}>
-                  <span className="vote-mark" aria-hidden="true">✕</span> Different
+                <button type="button" className="vote-btn vote-btn--no" onClick={(event) => { pressFeedback(event); vote(-1); }} disabled={votingBlocked}>
+                  <span className="vote-ripples" aria-hidden="true" />
+                  <svg className="vote-mark" viewBox="0 0 16 16" aria-hidden="true"><path pathLength={20} d="M4 4l8 8M12 4l-8 8" /></svg> Different
                 </button>
-                <button type="button" className="vote-btn vote-btn--yes" onClick={() => vote(1)} disabled={votingBlocked}>
-                  <span className="vote-mark" aria-hidden="true">✓</span> Same person
+                <button type="button" className="vote-btn vote-btn--yes" onClick={(event) => { pressFeedback(event); vote(1); }} disabled={votingBlocked}>
+                  <span className="vote-ripples" aria-hidden="true" />
+                  <svg className="vote-mark" viewBox="0 0 16 16" aria-hidden="true"><path pathLength={20} d="M2.5 8.5l3.5 3.5 7.5-8" /></svg> Same person
                 </button>
               </div>
               <button type="button" className="vote-link vote-link--unsure" onClick={() => { haptic("tap"); setAskReason(true); }} disabled={votingBlocked}>
@@ -697,7 +770,8 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
           )}
         </div>
       </div>
-      {loading && <Loading className="fixed" message="Loading hints…" />}
+      {/* The shapes show while the first hints load; this is for a reload with a hint already on screen */}
+      {loading && !waiting && <Loading className="fixed" message="Loading hints…" />}
     </form>
   );
 }

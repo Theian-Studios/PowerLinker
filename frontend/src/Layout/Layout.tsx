@@ -1,7 +1,8 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { CONTEXT, ContextState, STREAK_GOAL, STREAK_POINTS } from "../Models/Context";
 import { haptic } from "../Services/haptics";
+import useStreakGlow from "../Hooks/useStreakGlow";
 import ProfileButton from "../Components/ProfileButton/ProfileButton";
 import "./Layout.css";
 
@@ -16,18 +17,9 @@ export function Layout() {
     const onHintPage = useLocation().pathname === "/";
     const progress = Math.min(1, context.streak / STREAK_GOAL);
 
-    // The count animates each time an answer adds to it
-    const [glow, setGlow] = useState(false);
-    const lastStreak = useRef(context.streak);
-    useEffect(() => {
-        // Loading the saved count isn't an answer, so only glow once something has been reviewed
-        const grew = (context.streak > lastStreak.current || Boolean(context.justRewarded)) && context.reviewedHints.length > 0;
-        lastStreak.current = context.streak;
-        if (!grew) return;
-        setGlow(true);
-        const timer = setTimeout(() => setGlow(false), 700);
-        return () => clearTimeout(timer);
-    }, [context.streak, context.justRewarded, context.reviewedHints.length]);
+    // The bar glows at its tip and the count rolls over each time an answer adds to it
+    const { glow, rollFrom } = useStreakGlow();
+    const left = STREAK_GOAL - context.streak;
 
     // The celebration stays until "Keep going"; the reset message closes itself after a few seconds
     useEffect(() => {
@@ -61,8 +53,10 @@ export function Layout() {
                         <div className="progress-labels">
                             <span className="points-count"><b>{context.points}</b> points</span>
                             <span className="progress-count">
-                                {/* A new key on each change replays the slide-up */}
-                                <span key={context.streak} className={`count-num${glow ? " is-new" : ""}`}>{STREAK_GOAL - context.streak}</span> more for +{STREAK_POINTS}
+                                {/* The last count rolls up out of sight as the new one rolls in, like an odometer; a new key replays it */}
+                                {glow && rollFrom !== undefined && rollFrom !== left
+                                    ? <span key={context.streak} className="count-roll" aria-label={String(left)}><span className="count-roll-inner is-new"><span aria-hidden="true">{rollFrom}</span><span aria-hidden="true">{left}</span></span></span>
+                                    : <span className="count-num">{left}</span>} more for +{STREAK_POINTS}
                             </span>
                         </div>
                         <div
@@ -73,7 +67,7 @@ export function Layout() {
                             aria-valuemax={STREAK_GOAL}
                             aria-valuenow={context.streak}
                         >
-                            <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
+                            <div className={`progress-fill${glow ? " is-growing" : ""}`} style={{ width: `${progress * 100}%` }} />
                         </div>
                     </div>
                 )}
