@@ -85,6 +85,18 @@ read is missing or empty, rather than writing empty Hints or Checks tabs.
 After changing `Code.gs`, use Deploy → Manage deployments → edit → Version: New version, so the URL stays
 the same.
 
+5. Run `installKeepWarm` once in the editor (pick it in the function menu, then Run) and allow the
+   permission to manage triggers. It adds a timer that runs `keepWarm` every 5 minutes, which reads a page
+   of hints and a check hint so the script and its cache don't go cold between volunteers. Running it again
+   replaces the timer rather than adding a second one; Triggers (clock icon) shows it.
+
+## The cache
+
+Requests for hints and check hints read them through the script's cache, 20 rows at a time, so most don't
+open the Sheet, which is most of a request's time. Cached rows last 6 hours. `buildHints` and `addBatch`
+start a fresh cache themselves. After editing the Hints or Checks tab by hand, run `clearHintCache` in the
+editor, or volunteers can get the old rows for up to 6 hours.
+
 ## Testing locally
 
 `npm run dev -- --mode sheets` reads `frontend/.env.sheets.local`, which sets `VITE_SHEETS_URL`. Point it
@@ -95,4 +107,6 @@ at the deployed script, or at a local stand-in that runs `Code.gs` against the C
 - Anyone with the site link can add rows. Each row has an anonymous voter ID, so junk can be filtered out.
 - Apps Script handles about 30 requests at once and has daily quotas, which is enough for dozens of
   volunteers at a time.
-- Each request takes about a second. Answers are sent in the background, so people don't wait on them.
+- Each request takes about a second, and up to 10 when the script has been idle (the keep-warm timer is
+  for that). The app asks for a page of hints and a check hint in one request. Answers are sent in the
+  background, so people don't wait on them.

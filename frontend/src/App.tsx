@@ -28,7 +28,8 @@ function ContextProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (context.sid === "") {
       getInitialContext().then((initialContext: Context) => {
-        setContext(initialContext);
+        // Hints the page already queued (saved from the last visit) stay; this runs after the page's own setup
+        setContext((prev) => ({ ...initialContext, hintQue: prev.hintQue, reviewedHints: prev.reviewedHints }));
       });
     }
   }, [context.sid, setContext]);

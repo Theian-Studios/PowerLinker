@@ -59,6 +59,8 @@ export function useHomeHandlers({
         useRef<(lastInsertTime?: number, silent?: boolean) => Promise<void>>();
     // Each request gets a number; a response is ignored if a newer request (like a hint type switch) started since
     const requestId = useRef(0);
+    // The first request on a page load asks for a full page, the same one index.html may have started already
+    const firstRequest = useRef(true);
     // The hints already queued or answered as of the last render, to tell whether a page brought new ones
     const latestContext = useRef(context);
     latestContext.current = context;
@@ -76,8 +78,10 @@ export function useHomeHandlers({
 
         try {
             awaitingHints.current = true;
+            const count = silent && !firstRequest.current ? HINTS_PER_REQUEST : FIRST_HINTS_PER_REQUEST;
+            firstRequest.current = false;
             const hintsResponse = await asyncUseHintList(
-            silent ? HINTS_PER_REQUEST : FIRST_HINTS_PER_REQUEST,
+            count,
             lastInsertTime,
             hintType
             );

@@ -89,8 +89,9 @@ function Evidence({ people }: { people: PersonRows[] }): ReactElement {
   return (
     <section className="side-card">
       <h2 className="side-title">Evidence</h2>
+      {/* Only the kinds the hint has: "0 conflicts" is noise */}
       <div className="evidence-counts">
-        {(["ok", "close", "bad"] as const).map((status) => (
+        {(["ok", "close", "bad"] as const).filter((status) => counts[status] > 0).map((status) => (
           <span key={status} className={`evidence-count evidence-count--${status}`}>
             <span aria-hidden="true">{COUNT_LABELS[status][0]}</span> {counts[status]} {counts[status] === 1 ? COUNT_LABELS[status][1] : COUNT_LABELS[status][2]}
           </span>

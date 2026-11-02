@@ -4,6 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Power Linker</title>
+    <script>
+      // On the public site, ask the Sheet for the first hints right away, while the app's code is still
+      // loading; the app takes over this request (takeEarlyRequest in useLambdaFetch.ts). It asks for the
+      // same page the app would: after the furthest hint answered, or after the saved upcoming hints.
+      (function () {
+        var url = "%VITE_SHEETS_URL%";
+        if (!url || url.charAt(0) === "%") return;
+        try {
+          var after = Number(localStorage.getItem("powerlinker.cursor"));
+          if (!(after > 0)) after = -1;
+          var upcoming = JSON.parse(localStorage.getItem("powerlinker.upcoming") || "[]");
+          for (var i = 0; i < upcoming.length; i++) {
+            if (upcoming[i]["insert-time"] > after) after = upcoming[i]["insert-time"];
+          }
+          var query = "?record_type=possible_duplicate&last_insert_time=" + after + "&count=20" +
+            (after < 0 ? "&start=random" : "") + "&with_check=true";
+          window.powerlinkerFirstHints = {
+            query: query,
+            response: fetch(url + query, { credentials: "omit" })
+              .then(function (r) { return r.ok ? r.json().then(function (data) { return { ok: true, data: data }; }) : null; })
+              .catch(function () { return null; }),
+          };
+        } catch (e) {
+          // Storage blocked or no fetch: the app asks for hints itself
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

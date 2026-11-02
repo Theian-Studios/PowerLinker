@@ -4,7 +4,8 @@ import { ReactElement, useCallback, useContext, useEffect, useRef, useState } fr
 import newDummyData from "../../Models/ParentDummyData.json";
 import { CONTEXT, ContextState, /* Context, getInitialContext */ } from "../../Models/Context.ts";
 import { invalidateSession } from "../../Hooks/useLambdaFetch.ts";
-import { savedCursor, usingSheets } from "../../Services/sheetsApi.ts";
+import { saveUpcoming, savedCursor, savedUpcoming, usingSheets } from "../../Services/sheetsApi.ts";
+import { getPersons } from "../../Services/getPersons.ts";
 import { State } from "../../Hooks/useFetch.ts";
 import useQueue, { QueuedVote } from "../../Hooks/useQueue.ts";
 import { useHomeHandlers } from "./utils.ts";
@@ -60,12 +61,20 @@ export default function Home(): ReactElement {
   }, [sendVotes.error]);
 
   useEffect(() => {
-    setContext((prev) => ({ ...prev, hintQue: [], reviewedHints: [] }));
+    // A returning volunteer starts on the hints saved last visit, while the next page loads behind them
+    const saved = getPersons({ data: savedUpcoming() });
+    setContext((prev) => ({ ...prev, hintQue: saved, reviewedHints: [] }));
+    if (saved.length > 0) setLoading(false);
     // Start the new type's fetch even if the old type's is still in flight; its late answer is ignored
     awaitingHints.current = false;
-    fetchHints(savedCursor(), false);
+    fetchHints(saved.reduce((max, hint) => Math.max(max, hint.insertTime), savedCursor()), saved.length > 0);
     // eslint-disable-next-line
   }, [hintType]);
+
+  // Keep the next few hints saved for the next visit
+  useEffect(() => {
+    saveUpcoming(context.hintQue.filter((hint) => !hint.dummy && hint.raw).map((hint) => hint.raw));
+  }, [context.hintQue]);
 
   useEffect(() => {
     if (context.hintQue.length < MAX_HINTS_IN_QUEUE) {

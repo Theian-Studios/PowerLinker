@@ -62,33 +62,75 @@ export async function asyncUseHintList<T = unknown>(
     count,
     // On the public site, a volunteer with no saved place starts at a random hint the Sheet picks
     ...(usingSheets && lastInsertTime < 0 ? { start: "random" } : {}),
+    // and the Sheet sends a check hint along with the page, so a visit starts its script once, not twice
+    ...(usingSheets ? { with_check: true } : {}),
   });
-  // The check hint is asked for at the same time as the page, so the first hint doesn't wait on two requests
-  // in a row (each takes a second or two on the Sheet)
+  // The lab's API sends the check hint on its own, asked for at the same time as the page
   // TODO: add ?correct=true/false if we want a specific true/false dummy hint
-  const [response, checkHint] = await Promise.all([
-    fetch(getLambdaURL(path), {
-      method: "GET",
-      credentials: getLambdaCredentials(),
-      signal: timeoutSignal(HINTS_TIMEOUT_MS),
-    }),
-    fetchCheckHint(recordType),
+  const [page, separateCheck] = await Promise.all([
+    takeEarlyRequest(path) ?? loadPage(path),
+    usingSheets ? Promise.resolve(undefined) : fetchCheckHint(recordType),
   ]);
 
-  if (!response.ok) {
+  if (!page.ok) {
     return { error: new Error("Failed to fetch hints") };
   }
 
-  const data = await response.json();
+  // The Sheet answers { hints, check }; a script from before that change, or the lab's API, a plain list
+  const combined = isPageWithCheck(page.data) ? page.data : undefined;
+  const data = combined ? combined.hints : page.data;
 
   // No real hints left: don't pad the response with a lone dummy hint
   if (Array.isArray(data) && data.length === 0) return { data: [] as T };
 
+  const checkHint = combined ? combined.check : separateCheck ?? (usingSheets ? await fetchCheckHint(recordType) : undefined);
   // The check hint goes at a random spot in the page, so it isn't always every 11th hint. Without one, the
   // real hints still show; the next page brings another.
   const hints = Array.isArray(data) ? [...data] : [data];
   if (checkHint) hints.splice(Math.floor(Math.random() * (hints.length + 1)), 0, checkHint);
   return { data: hints as T };
+}
+
+/**
+ * Checks whether the Sheet answered with a page of hints and a check hint together.
+ * @param {unknown} data - The parsed answer.
+ * @returns {boolean} True for { hints, check }.
+ */
+function isPageWithCheck(data: unknown): data is { hints: unknown[]; check?: unknown } {
+  return typeof data === "object" && data !== null && !Array.isArray(data) && Array.isArray((data as { hints?: unknown }).hints);
+}
+
+/**
+ * Gets a page of hints.
+ * @param {string} path - The hints path with its query.
+ * @returns {Promise<{ ok: boolean; data?: unknown }>} The parsed answer, or ok false when the server said no.
+ */
+async function loadPage(path: string): Promise<{ ok: boolean; data?: unknown }> {
+  const response = await fetch(getLambdaURL(path), {
+    method: "GET",
+    credentials: getLambdaCredentials(),
+    signal: timeoutSignal(HINTS_TIMEOUT_MS),
+  });
+  return response.ok ? { ok: true, data: await response.json() } : { ok: false };
+}
+
+/** The first request for hints, started by index.html before the app's code had loaded. */
+interface EarlyRequest {
+  query: string;
+  response: Promise<{ ok: boolean; data?: unknown } | null>;
+}
+
+/**
+ * Takes over the request index.html started for this same page of hints, once. If it asked for something
+ * else (the volunteer's place changed) or failed, the page is asked for again as usual.
+ * @param {string} path - The hints path with its query, as this app would ask for it.
+ * @returns {Promise<{ ok: boolean; data?: unknown }> | undefined} Its answer, or undefined to ask normally.
+ */
+function takeEarlyRequest(path: string): Promise<{ ok: boolean; data?: unknown }> | undefined {
+  const early = (window as { powerlinkerFirstHints?: EarlyRequest }).powerlinkerFirstHints;
+  (window as { powerlinkerFirstHints?: EarlyRequest }).powerlinkerFirstHints = undefined;
+  if (!usingSheets || !early || early.query !== path.slice(path.indexOf("?"))) return undefined;
+  return early.response.then((answer) => answer ?? loadPage(path));
 }
 
 /**

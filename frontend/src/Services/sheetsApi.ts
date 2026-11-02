@@ -142,3 +142,36 @@ export function saveCursor(insertTime: number): void {
     // Without storage the next visit starts from the beginning, as before
   }
 }
+
+const UPCOMING_KEY = "powerlinker.upcoming";
+/** Hints saved for the next visit; a few are enough to fill the wait for the next page. */
+const UPCOMING_COUNT = 8;
+
+/**
+ * Saves the next hints in the queue, as the Sheet sent them, so a returning volunteer sees one the moment the
+ * page opens instead of waiting on the Sheet. Check hints aren't saved: they carry their answer.
+ * @param {unknown[]} hints - The hints waiting in the queue, in order.
+ */
+export function saveUpcoming(hints: unknown[]): void {
+  if (!usingSheets) return;
+  try {
+    localStorage.setItem(UPCOMING_KEY, JSON.stringify(hints.slice(0, UPCOMING_COUNT)));
+  } catch {
+    // Too big for storage, or storage blocked: the next visit waits on the Sheet, as before
+  }
+}
+
+/**
+ * Gets the hints saved on the last visit that come after the furthest one answered.
+ * @returns {unknown[]} The saved hints still to answer, in order.
+ */
+export function savedUpcoming(): unknown[] {
+  if (!usingSheets) return [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(UPCOMING_KEY) ?? "[]");
+    const cursor = savedCursor();
+    return Array.isArray(saved) ? saved.filter((hint) => Number(hint?.["insert-time"]) > cursor) : [];
+  } catch {
+    return [];
+  }
+}

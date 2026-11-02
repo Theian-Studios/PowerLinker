@@ -70,7 +70,8 @@ export function getPersons(hintsResponse: { error?: Error; data?: unknown }): Hi
       url: hint.url,
       hintId: hint.hint_id,
       complete: false,
-      dummy: dummy
+      dummy: dummy,
+      raw: hint
     } as Hint);
   }
 

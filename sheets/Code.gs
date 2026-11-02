@@ -10,6 +10,10 @@
  *   Voters  one row per person who entered the VIP code
  *   Sessions  sessions ended after three missed check hints, with the voter and their name
  *
+ * Hints and check hints are kept in the script's cache, 20 rows at a time, so most requests don't open the
+ * Sheet at all; that, and not the script itself, is most of a request's time. Run installKeepWarm once from the
+ * editor to add a timer that keeps the script and its cache from going cold between volunteers.
+ *
  * The VIP code lives in Project Settings → Script properties as VIP_CODE, never in this file,
  * since this file is public on GitHub. A standalone script also needs SHEET_ID there: the ID from
  * the Sheet's address. A script made from the Sheet's Extensions menu finds its Sheet without it.
@@ -25,6 +29,10 @@ const MAX_NAME_LENGTH = 80;
 // Rows added at a time when a tab fills up
 const ROWS_TO_ADD = 5000;
 const MAX_COUNT = 25;
+// Rows kept together in the cache: 20 hints are about 50 KB, under the cache's 100 KB a value
+const CACHE_ROWS = 20;
+// How long cached rows are kept (Apps Script's cache maximum); rebuilding the hints starts a new set
+const CACHE_SECONDS = 21600;
 
 /**
  * Answers GET requests: a page of hints, or one random check hint.
@@ -37,7 +45,9 @@ function doGet(e) {
   // A new volunteer starts at a random row, so answers spread across all the hints
   const after = params.start === "random" ? randomPosition() : Math.max(0, Number(params.last_insert_time) || 0);
   const count = Math.min(MAX_COUNT, Math.max(1, Number(params.count) || 10));
-  return json(hintsAfter(after, count));
+  const hints = hintsAfter(after, count);
+  // The app asks for the check hint in the same request, so a visit starts the script once, not twice
+  return json(params.with_check === "true" ? { hints, check: checkHint() } : hints);
 }
 
 /**
@@ -73,7 +83,7 @@ function doPost(e) {
  * @returns {number} A position from 0 to the number of hints minus 1.
  */
 function randomPosition() {
-  const total = tab("Hints").getLastRow() - 1;
+  const total = rowCount("Hints");
   return total > 0 ? Math.floor(Math.random() * total) : 0;
 }
 
@@ -86,14 +96,10 @@ function randomPosition() {
  * @returns {Object[]} The hints, each with its position as "insert-time".
  */
 function hintsAfter(after, count) {
-  const sheet = tab("Hints");
-  const total = sheet.getLastRow() - 1;
+  const total = rowCount("Hints");
   if (total < 1) return [];
   const wanted = Math.min(count, total);
-  const start = after % total;
-  const firstPart = Math.min(wanted, total - start);
-  const rows = sheet.getRange(start + 2, 1, firstPart, 2).getValues();
-  if (firstPart < wanted) rows.push(...sheet.getRange(2, 1, wanted - firstPart, 2).getValues());
+  const rows = cachedRows("Hints", 2, total, Array.from({ length: wanted }, (_, i) => (after + i) % total));
   return rows.map(([id, data], i) => ({
     ...JSON.parse(data),
     hint_id: String(id),
@@ -102,15 +108,95 @@ function hintsAfter(after, count) {
 }
 
 /**
+ * Counts a tab's rows below its header, through the cache.
+ * @param {string} name - "Hints" or "Checks".
+ * @returns {number} The number of rows.
+ */
+function rowCount(name) {
+  const cache = CacheService.getScriptCache();
+  const key = `${cachePrefix()}:${name}:count`;
+  const hit = cache.get(key);
+  if (hit !== null) return Number(hit);
+  const total = Math.max(0, tab(name).getLastRow() - 1);
+  cache.put(key, String(total), CACHE_SECONDS);
+  return total;
+}
+
+/**
+ * Reads rows of a tab through the cache, CACHE_ROWS rows at a time, opening the Sheet only for rows that
+ * aren't cached yet.
+ * @param {string} name - "Hints" or "Checks".
+ * @param {number} width - How many columns each row has.
+ * @param {number} total - The tab's row count.
+ * @param {number[]} indexes - The rows wanted, 0 for the first row under the header.
+ * @returns {Array[]} The rows, in the order asked for.
+ */
+function cachedRows(name, width, total, indexes) {
+  const cache = CacheService.getScriptCache();
+  const prefix = `${cachePrefix()}:${name}`;
+  const groups = [...new Set(indexes.map((i) => Math.floor(i / CACHE_ROWS)))];
+  const hits = cache.getAll(groups.map((g) => `${prefix}:${g}`));
+  const rowsByGroup = {};
+  const fresh = {};
+  for (const group of groups) {
+    const key = `${prefix}:${group}`;
+    if (hits[key]) {
+      rowsByGroup[group] = JSON.parse(hits[key]);
+      continue;
+    }
+    const first = group * CACHE_ROWS;
+    rowsByGroup[group] = tab(name).getRange(first + 2, 1, Math.min(CACHE_ROWS, total - first), width).getValues()
+      .map((row) => row.map((value) => (typeof value === "number" ? value : String(value))));
+    const text = JSON.stringify(rowsByGroup[group]);
+    // A group of unusually large hints is read from the Sheet each time rather than not at all
+    if (text.length < 90000) fresh[key] = text;
+  }
+  if (Object.keys(fresh).length) cache.putAll(fresh, CACHE_SECONDS);
+  return indexes.map((i) => rowsByGroup[Math.floor(i / CACHE_ROWS)][i % CACHE_ROWS]);
+}
+
+/**
+ * Starts the cache keys for the current hints, so rebuilding or adding hints uses new keys.
+ * @returns {string} The prefix.
+ */
+function cachePrefix() {
+  return `rows:${cachedProperty("HINTS_VERSION") || "0"}`;
+}
+
+/**
+ * Moves the cache on to new keys after the Hints or Checks tab changes.
+ */
+function clearHintCache() {
+  PropertiesService.getScriptProperties().setProperty("HINTS_VERSION", String(Date.now()));
+  CacheService.getScriptCache().remove("prop:HINTS_VERSION");
+}
+
+/**
+ * Keeps the script and its cache warm: reads a page of hints and a check hint, as a volunteer's first visit
+ * would. installKeepWarm runs it every 5 minutes.
+ */
+function keepWarm() {
+  hintsAfter(randomPosition(), MAX_COUNT);
+  checkHint();
+}
+
+/**
+ * Adds the timer that runs keepWarm every 5 minutes, replacing any from before. Run it once from the editor;
+ * it asks for permission to manage the script's triggers.
+ */
+function installKeepWarm() {
+  ScriptApp.getProjectTriggers().filter((t) => t.getHandlerFunction() === "keepWarm").forEach((t) => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("keepWarm").timeBased().everyMinutes(5).create();
+}
+
+/**
  * Picks a random check hint and includes its answer, as the app grades it.
  * @returns {Object} The check hint.
  */
 function checkHint() {
-  const sheet = tab("Checks");
-  const rows = sheet.getLastRow() - 1;
+  const rows = rowCount("Checks");
   if (rows < 1) return {};
-  const row = 2 + Math.floor(Math.random() * rows);
-  const [id, expected, data] = sheet.getRange(row, 1, 1, 3).getValues()[0];
+  const [[id, expected, data]] = cachedRows("Checks", 3, rows, [Math.floor(Math.random() * rows)]);
   return { ...JSON.parse(data), hint_id: String(id), expected: Number(expected) };
 }
 
@@ -342,6 +428,7 @@ function buildHints() {
 
   writeTab("Hints", ["hint_id", "hint"], hints);
   writeTab("Checks", ["hint_id", "expected", "hint"], checks);
+  clearHintCache();
   Logger.log(`${pairs.length} pairs: ${hints.length} hints, ${checks.length} checks`);
 }
 
@@ -392,6 +479,7 @@ function addBatch(rawTab, prefix, differentCount, familyTab) {
 
   appendInChunks("Hints", hints);
   appendInChunks("Checks", checks);
+  clearHintCache();
   Logger.log(`${pairs.length} pairs in ${rawTab}: added ${hints.length} hints and ${checks.length} checks`);
 }
 

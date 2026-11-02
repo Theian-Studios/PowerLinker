@@ -36,4 +36,5 @@ export interface Hint {
   graded?: boolean // a check hint already answered once, so going back and re-answering can't add more strikes
   counted?: boolean // whether this answer added to the count, so going back undoes exactly that
   answered?: boolean // already counted in the all-time total, so re-answering after Back doesn't count it again
+  raw?: unknown // the hint as the backend sent it, saved so a returning volunteer sees one before the next page loads
 }
