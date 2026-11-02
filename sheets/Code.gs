@@ -10,7 +10,7 @@
  *   Voters  one row per person who entered the VIP code
  *   Sessions  sessions ended after three missed check hints, with the voter and their name
  *
- * Hints and check hints are kept in the script's cache, 20 rows at a time, so most requests don't open the
+ * Hints and check hints are kept in the script's cache, 10 rows at a time, so most requests don't open the
  * Sheet at all; that, and not the script itself, is most of a request's time. Run installKeepWarm once from the
  * editor to add a timer that keeps the script and its cache from going cold between volunteers.
  *
@@ -29,10 +29,16 @@ const MAX_NAME_LENGTH = 80;
 // Rows added at a time when a tab fills up
 const ROWS_TO_ADD = 5000;
 const MAX_COUNT = 25;
-// Rows kept together in the cache: 20 hints are about 50 KB, under the cache's 100 KB a value
-const CACHE_ROWS = 20;
+// Rows kept together in the cache: 10 hints are about 35 KB stored, safely under the cache's 100 KB a value
+// even for big families (some 20-hint groups went over)
+const CACHE_ROWS = 10;
 // How long cached rows are kept (Apps Script's cache maximum); rebuilding the hints starts a new set
 const CACHE_SECONDS = 21600;
+// Stretches of hints keepWarm has just read, where new volunteers start: about an hour's worth at one every 5 minutes
+const WARM_STRETCHES = 12;
+// Hints in each stretch, and in the app's first page; a new volunteer starts where a whole first page fits
+const WARM_ROWS = 40;
+const FIRST_PAGE_ROWS = 20;
 
 /**
  * Answers GET requests: a page of hints, or one random check hint.
@@ -80,11 +86,28 @@ function doPost(e) {
 /**
  * Picks a random position among the hints, for a volunteer's first page. It's at most the number of hints,
  * so adding a batch later doesn't move anyone: positions up to the old last row still point to the same rows.
+ * A new volunteer starts somewhere in a stretch keepWarm has just read, so their first page comes from the
+ * cache instead of the Sheet. keepWarm picks its stretches at random, so volunteers still spread across all
+ * the hints. Before it has run, any row will do.
  * @returns {number} A position from 0 to the number of hints minus 1.
  */
 function randomPosition() {
   const total = rowCount("Hints");
-  return total > 0 ? Math.floor(Math.random() * total) : 0;
+  if (total < 1) return 0;
+  const warm = warmStretches();
+  if (warm.length === 0) return Math.floor(Math.random() * total);
+  // Anywhere a first page stays inside the stretch keepWarm read
+  const start = warm[Math.floor(Math.random() * warm.length)];
+  return (start + Math.floor(Math.random() * (WARM_ROWS - FIRST_PAGE_ROWS + 1))) % total;
+}
+
+/**
+ * Gets the stretches of hints keepWarm read most recently, as the row each starts at.
+ * @returns {number[]} Up to WARM_STRETCHES starting rows.
+ */
+function warmStretches() {
+  const saved = CacheService.getScriptCache().get(`${cachePrefix()}:warm`);
+  return saved ? JSON.parse(saved) : [];
 }
 
 /**
@@ -156,11 +179,12 @@ function cachedRows(name, width, total, indexes) {
 }
 
 /**
- * Starts the cache keys for the current hints, so rebuilding or adding hints uses new keys.
+ * Starts the cache keys for the current hints, so rebuilding or adding hints uses new keys. The group size is
+ * in it too, so groups cached at another size are never read as this one.
  * @returns {string} The prefix.
  */
 function cachePrefix() {
-  return `rows:${cachedProperty("HINTS_VERSION") || "0"}`;
+  return `rows:${cachedProperty("HINTS_VERSION") || "0"}:${CACHE_ROWS}`;
 }
 
 /**
@@ -172,11 +196,18 @@ function clearHintCache() {
 }
 
 /**
- * Keeps the script and its cache warm: reads a page of hints and a check hint, as a volunteer's first visit
- * would. installKeepWarm runs it every 5 minutes.
+ * Keeps the script and its cache warm: reads a random stretch of WARM_ROWS hints and a check hint, and adds
+ * the stretch to the ones new volunteers start in. installKeepWarm runs it every 5 minutes.
  */
 function keepWarm() {
-  hintsAfter(randomPosition(), MAX_COUNT);
+  const total = rowCount("Hints");
+  if (total > 0) {
+    // Starting on a cache group's first row, so the stretch is whole groups
+    const start = CACHE_ROWS * Math.floor(Math.random() * Math.ceil(total / CACHE_ROWS));
+    hintsAfter(start, WARM_ROWS);
+    const warm = [start, ...warmStretches().filter((row) => row !== start)].slice(0, WARM_STRETCHES);
+    CacheService.getScriptCache().put(`${cachePrefix()}:warm`, JSON.stringify(warm), CACHE_SECONDS);
+  }
   checkHint();
 }
 

@@ -92,8 +92,10 @@ the same.
 
 ## The cache
 
-Requests for hints and check hints read them through the script's cache, 20 rows at a time, so most don't
-open the Sheet, which is most of a request's time. Cached rows last 6 hours. `buildHints` and `addBatch`
+Requests for hints and check hints read them through the script's cache, 10 rows at a time, so most don't
+open the Sheet, which is most of a request's time. Each time `keepWarm` runs it reads a random stretch of 40
+hints, and new volunteers start somewhere in the last 12 of those stretches, so their first page is already
+cached; the stretches are random, so volunteers still spread across all the hints. Cached rows last 6 hours. `buildHints` and `addBatch`
 start a fresh cache themselves. After editing the Hints or Checks tab by hand, run `clearHintCache` in the
 editor, or volunteers can get the old rows for up to 6 hours.
 

@@ -11,6 +11,15 @@
       (function () {
         var url = "%VITE_SHEETS_URL%";
         if (!url || url.charAt(0) === "%") return;
+        // Apps Script sends every answer on to googleusercontent.com, so connect to it now rather than after
+        // the first reply
+        if (url.indexOf("https://script.google.com/") === 0) {
+          var link = document.createElement("link");
+          link.rel = "preconnect";
+          link.href = "https://script.googleusercontent.com";
+          link.crossOrigin = "anonymous";
+          document.head.appendChild(link);
+        }
         try {
           var after = Number(localStorage.getItem("powerlinker.cursor"));
           if (!(after > 0)) after = -1;
