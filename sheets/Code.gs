@@ -48,10 +48,13 @@ const FIRST_PAGE_ROWS = 20;
 function doGet(e) {
   const params = e.parameter || {};
   if (params.dummy === "true") return json(checkHint());
-  // A new volunteer starts at a random row, so answers spread across all the hints
-  const after = params.start === "random" ? randomPosition() : Math.max(0, Number(params.last_insert_time) || 0);
   const count = Math.min(MAX_COUNT, Math.max(1, Number(params.count) || 10));
-  const hints = hintsAfter(after, count);
+  // A new volunteer's first page comes from a stretch keepWarm has just read, so it's already cached, but it's
+  // numbered from a random row: their next pages carry on from there. Volunteers who start in the same stretch
+  // share only that first page, and answers still spread across all the hints.
+  const hints = params.start === "random"
+    ? hintsAfter(warmPosition() ?? randomPosition(), count, randomPosition())
+    : hintsAfter(Math.max(0, Number(params.last_insert_time) || 0), count);
   // The app asks for the check hint in the same request, so a visit starts the script once, not twice
   return json(params.with_check === "true" ? { hints, check: checkHint() } : hints);
 }
@@ -86,17 +89,22 @@ function doPost(e) {
 /**
  * Picks a random position among the hints, for a volunteer's first page. It's at most the number of hints,
  * so adding a batch later doesn't move anyone: positions up to the old last row still point to the same rows.
- * A new volunteer starts somewhere in a stretch keepWarm has just read, so their first page comes from the
- * cache instead of the Sheet. keepWarm picks its stretches at random, so volunteers still spread across all
- * the hints. Before it has run, any row will do.
  * @returns {number} A position from 0 to the number of hints minus 1.
  */
 function randomPosition() {
   const total = rowCount("Hints");
-  if (total < 1) return 0;
+  return total > 0 ? Math.floor(Math.random() * total) : 0;
+}
+
+/**
+ * Picks where a new volunteer's first page comes from: somewhere in a stretch keepWarm has just read, where a
+ * whole first page is already cached.
+ * @returns {number|undefined} A position, or undefined before keepWarm has run.
+ */
+function warmPosition() {
+  const total = rowCount("Hints");
   const warm = warmStretches();
-  if (warm.length === 0) return Math.floor(Math.random() * total);
-  // Anywhere a first page stays inside the stretch keepWarm read
+  if (total < 1 || warm.length === 0) return undefined;
   const start = warm[Math.floor(Math.random() * warm.length)];
   return (start + Math.floor(Math.random() * (WARM_ROWS - FIRST_PAGE_ROWS + 1))) % total;
 }
@@ -116,9 +124,11 @@ function warmStretches() {
  * position 1 is row 2, and with 100 hints, position 101 is row 2 again.
  * @param {number} after - The position of the last hint the app already has.
  * @param {number} count - How many to return.
+ * @param {number} [numberFrom] - Numbers the hints from here instead, so the app's next page carries on from
+ *   another position (a new volunteer's first page; see doGet).
  * @returns {Object[]} The hints, each with its position as "insert-time".
  */
-function hintsAfter(after, count) {
+function hintsAfter(after, count, numberFrom = after) {
   const total = rowCount("Hints");
   if (total < 1) return [];
   const wanted = Math.min(count, total);
@@ -126,7 +136,7 @@ function hintsAfter(after, count) {
   return rows.map(([id, data], i) => ({
     ...JSON.parse(data),
     hint_id: String(id),
-    "insert-time": after + i + 1,
+    "insert-time": numberFrom + i + 1,
   }));
 }
 
