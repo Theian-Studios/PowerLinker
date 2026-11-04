@@ -1,7 +1,7 @@
 import { Person } from "../../Models/Person";
 import { Event } from "../../Models/Event";
 import { HighlightType } from "../../Models/HighlightType";
-import { MAX_YELLOW_YEAR_GAP, Scored, getDateHighlight, isPlaceholderPlace, scoreName, scorePlace, scoreResidence } from "../../Services/highlightScoring";
+import { MAX_YELLOW_YEAR_GAP, Scored, getDateHighlight, isPlaceholderPlace, scoreName, scorePlace, scoreResidence, TOWN_LABEL, withoutTownSuffix } from "../../Services/highlightScoring";
 
 export type Status = "ok" | "close" | "bad" | "none";
 
@@ -546,8 +546,8 @@ export function familyTimelineRows(member: Person, treeFocus: Person | undefined
   }));
 }
 
-/** Words that only say what kind of place a town is, so "Salem Township" and "Salem" are the same town. */
-const PLACE_KIND = /\s+(township|city|village|borough|town|twp\.?)$/;
+/** Words that only say what kind of place a town is, so "Salem Township", "Salem Twp" and "Salem" are the same town. */
+const PLACE_KIND = new RegExp(`\\s+(${TOWN_LABEL})$`);
 
 /**
  * Finds the town two residences share, beyond the same county and state. Census places add wards and
@@ -572,8 +572,8 @@ export function sameTown(a?: string, b?: string): string | undefined {
     if (parts[parts.length - 1]?.toLowerCase() === "united states") parts.pop();
     if (parts.length < 3) return undefined;
     // "St Louis (Independent City)" and "St. Louis City" are the same county
-    const region = parts.slice(-2).map((part) => part.toLowerCase().replace(PLACE_KIND, "")).join(",");
-    const towns = new Map(parts.slice(0, -2).map((part) => [part.toLowerCase().replace(PLACE_KIND, ""), part.replace(PLACE_KIND, "")]));
+    const region = parts.slice(-2).map((part) => withoutTownSuffix(part.toLowerCase())).join(",");
+    const towns = new Map(parts.slice(0, -2).map((part) => [withoutTownSuffix(part.toLowerCase()), part.replace(PLACE_KIND, "")]));
     return { region, towns };
   };
   const first = a ? split(a) : undefined;

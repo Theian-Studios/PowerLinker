@@ -3,8 +3,8 @@
  * deploy it as a web app (Execute as: Me, Who has access: Anyone). See sheets/README.md.
  *
  * Tabs:
- *   Hints   hint_id | hint (JSON)             pairs to vote on; each volunteer starts at a random row and
- *                                             goes on from there, wrapping back to the top at the end
+ *   Hints   hint_id | hint (JSON)             pairs to vote on, handed out in order from one shared position:
+ *                                             each batch's hints PASSES_PER_BATCH times, batch 1 first
  *   Checks  hint_id | expected | hint (JSON)  check hints with known answers (1 same, -1 different)
  *   Votes   one row per answer, added by this script, with the name the volunteer gave
  *   Voters  one row per person who entered the VIP code
@@ -35,12 +35,20 @@ const MAX_COUNT = 25;
 const CACHE_ROWS = 10;
 // How long cached rows are kept (Apps Script's cache maximum); rebuilding the hints starts a new set
 const CACHE_SECONDS = 21600;
-// Stretches of hints keepWarm has read, where new volunteers start: three hours' worth at one every 5 minutes,
-// so a room of people starting together is spread over many stretches
-const WARM_STRETCHES = 36;
-// Hints in each stretch, and in the app's first page; a new volunteer starts where a whole first page fits
-const WARM_ROWS = 40;
-const FIRST_PAGE_ROWS = 20;
+// Every request for hints gets the next ones from one shared position, so each hint is handed out once before
+// any is handed out again. Batch 1's hints go round this many times before batch 2's start, then batch 2's, and
+// once every batch has had its turns, all the hints go round together.
+const PASSES_PER_BATCH = 3;
+// Where the shared position is kept: in the cache for speed, and copied to the script properties by keepWarm, since
+// the cache can drop it
+const NEXT_KEY = "NEXT_HINT";
+// Hints are numbered from here up as they're handed out, above any number the app saved before there was a
+// shared position, so a returning volunteer's app always sees the new numbers as later
+const FIRST_NUMBER = 1000000;
+// Hints keepWarm reads ahead of the shared position, so pages come from the cache: three times what was handed out
+// in the last 5 minutes, within these bounds
+const MIN_AHEAD = 600;
+const MAX_AHEAD = 3000;
 // How long a save waits for another to finish before answering "busy". The app keeps its answers and sends them
 // again a little later, which is better than holding the request: Google runs only so many requests at once, and
 // requests waiting here would leave none for loading hints.
@@ -58,12 +66,9 @@ function doGet(e) {
   const params = e.parameter || {};
   if (params.dummy === "true") return json(checkHint());
   const count = Math.min(MAX_COUNT, Math.max(1, Number(params.count) || 10));
-  // A new volunteer's first page comes from a stretch keepWarm has just read, so it's already cached, but it's
-  // numbered from a random row: their next pages carry on from there. Volunteers who start in the same stretch
-  // share only that first page, and answers still spread across all the hints.
-  const hints = params.start === "random"
-    ? hintsAfter(warmPosition() ?? randomPosition(), count, randomPosition())
-    : hintsAfter(Math.max(0, Number(params.last_insert_time) || 0), count);
+  // Every page is the next hints from the shared position, whatever the app says it last had (last_insert_time and
+  // start=random are from before, and ignored), so no hint gets a second answer before every hint has a first
+  const hints = handOut(count);
   // The app asks for the check hint in the same request, so a visit starts the script once, not twice
   return json(params.with_check === "true" ? { hints, check: checkHint() } : hints);
 }
@@ -101,57 +106,131 @@ function doPost(e) {
 }
 
 /**
- * Picks a random position among the hints, for a volunteer's first page. It's at most the number of hints,
- * so adding a batch later doesn't move anyone: positions up to the old last row still point to the same rows.
- * @returns {number} A position from 0 to the number of hints minus 1.
+ * Hands out the next hints from the shared position and moves it on past them.
+ * @param {number} count - How many to hand out.
+ * @returns {Object[]} The hints, in the app's format, each numbered as "insert-time".
  */
-function randomPosition() {
-  const total = rowCount("Hints");
-  return total > 0 ? Math.floor(Math.random() * total) : 0;
-}
-
-/**
- * Picks where a new volunteer's first page comes from: somewhere in a stretch keepWarm has just read, where a
- * whole first page is already cached.
- * @returns {number|undefined} A position, or undefined before keepWarm has run.
- */
-function warmPosition() {
-  const total = rowCount("Hints");
-  const warm = warmStretches();
-  if (total < 1 || warm.length === 0) return undefined;
-  const start = warm[Math.floor(Math.random() * warm.length)];
-  return (start + Math.floor(Math.random() * (WARM_ROWS - FIRST_PAGE_ROWS + 1))) % total;
-}
-
-/**
- * Gets the stretches of hints keepWarm read most recently, as the row each starts at.
- * @returns {number[]} Up to WARM_STRETCHES starting rows.
- */
-function warmStretches() {
-  const saved = CacheService.getScriptCache().get(`${cachePrefix()}:warm`);
-  return saved ? JSON.parse(saved) : [];
-}
-
-/**
- * Gets the hints after a position, in the app's hint format. Positions wrap around the Hints tab, so
- * each volunteer can start at a random position and keep going past the last row back to the first:
- * position 1 is row 2, and with 100 hints, position 101 is row 2 again.
- * @param {number} after - The position of the last hint the app already has.
- * @param {number} count - How many to return.
- * @param {number} [numberFrom] - Numbers the hints from here instead, so the app's next page carries on from
- *   another position (a new volunteer's first page; see doGet).
- * @returns {Object[]} The hints, each with its position as "insert-time".
- */
-function hintsAfter(after, count, numberFrom = after) {
+function handOut(count) {
   const total = rowCount("Hints");
   if (total < 1) return [];
-  const wanted = Math.min(count, total);
-  const rows = cachedRows("Hints", 2, total, Array.from({ length: wanted }, (_, i) => (after + i) % total));
-  return rows.map(([id, data], i) => ({
+  const cache = CacheService.getScriptCache();
+  const start = readPosition(cache);
+  const { rows, position } = walk(start, count, hintBatches(total), total);
+  // Moved on before the rows are read, so another request a moment later gets the hints after these. Two requests
+  // within a few milliseconds of each other can still get the same page; their hints then get an answer early.
+  cache.put(NEXT_KEY, JSON.stringify(position), CACHE_SECONDS);
+  return cachedRows("Hints", 2, total, rows).map(([id, data], i) => ({
     ...JSON.parse(data),
     hint_id: String(id),
-    "insert-time": numberFrom + i + 1,
+    "insert-time": start.n + i + 1,
   }));
+}
+
+/**
+ * Reads the shared position: the row to hand out next, how many times its batch has gone round, and how many hints
+ * have been handed out (from FIRST_NUMBER).
+ * @param {GoogleAppsScript.Cache.Cache} cache - The script cache.
+ * @returns {{row: number, pass: number, n: number}} The position.
+ */
+function readPosition(cache) {
+  const saved = cache.get(NEXT_KEY) || PropertiesService.getScriptProperties().getProperty(NEXT_KEY);
+  return saved ? JSON.parse(saved) : { row: 0, pass: 0, n: FIRST_NUMBER };
+}
+
+/**
+ * Lists the hints to hand out from a position on, and where the position ends up.
+ * @param {{row: number, pass: number, n: number}} position - Where to start.
+ * @param {number} count - How many hints.
+ * @param {Object[]} batches - The batches, from hintBatches.
+ * @param {number} total - The Hints tab's row count.
+ * @returns {{rows: number[], position: Object}} The rows, 0 for the first under the header, and the next position.
+ */
+function walk(position, count, batches, total) {
+  const wanted = Math.min(count, total);
+  const rows = [];
+  let { row, pass } = position;
+  // A small batch going round again could repeat a hint within one page; the repeat is passed over
+  for (let tries = 0; rows.length < wanted && tries < wanted + total; tries++) {
+    if (!(row >= 0 && row < total)) row = 0;
+    if (!rows.includes(row)) rows.push(row);
+    ({ row, pass } = nextRow(row, pass, batches, total));
+  }
+  return { rows, position: { row, pass, n: position.n + rows.length } };
+}
+
+/**
+ * Finds the row handed out after this one: the next in its batch; at the batch's end, the batch's first again until
+ * it has gone round PASSES_PER_BATCH times, then the next batch; and after the last batch, round all the hints.
+ * @param {number} row - A row, 0 for the first under the header.
+ * @param {number} pass - How many times its batch has gone round before this time.
+ * @param {Object[]} batches - The batches, from hintBatches.
+ * @param {number} total - The Hints tab's row count.
+ * @returns {{row: number, pass: number}} The next row and its pass.
+ */
+function nextRow(row, pass, batches, total) {
+  if (pass >= PASSES_PER_BATCH) return { row: (row + 1) % total, pass };
+  const batch = batches.find((b) => row >= b.start && row < b.end) || { start: 0, end: total };
+  if (row + 1 < batch.end) return { row: row + 1, pass };
+  if (pass + 1 < PASSES_PER_BATCH) return { row: batch.start, pass: pass + 1 };
+  const next = batches.find((b) => b.start >= batch.end);
+  return next ? { row: next.start, pass: 0 } : { row: 0, pass: PASSES_PER_BATCH };
+}
+
+/**
+ * Finds the batches in the Hints tab: runs of rows whose IDs start the same way ("b1-", "b2-"), in the order they
+ * were added. Rows without a batch name in their ID are one batch.
+ * @param {number} total - The Hints tab's row count.
+ * @returns {{name: string, start: number, end: number}[]} Each batch's first row and the row after its last.
+ */
+function hintBatches(total) {
+  const cache = CacheService.getScriptCache();
+  const key = `${cachePrefix()}:batches:${total}`;
+  const hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  const batches = [];
+  tab("Hints").getRange(2, 1, total, 1).getValues().forEach(([id], i) => {
+    const name = (String(id).match(/^([a-z]+\d*)-/i) || ["", ""])[1];
+    const last = batches[batches.length - 1];
+    if (last && last.name === name) last.end = i + 1;
+    else batches.push({ name, start: i, end: i + 1 });
+  });
+  cache.put(key, JSON.stringify(batches), CACHE_SECONDS);
+  return batches;
+}
+
+/**
+ * Moves the shared position, keeping the hints' numbers going up so the app never sees an earlier one.
+ * @param {number} row - The row to hand out next, 0 for the first under the header.
+ * @param {number} pass - How many times its batch has gone round before (PASSES_PER_BATCH or more: all the hints
+ *   go round together).
+ */
+function moveNextHint(row, pass) {
+  const cache = CacheService.getScriptCache();
+  const position = JSON.stringify({ row, pass, n: readPosition(cache).n });
+  cache.put(NEXT_KEY, position, CACHE_SECONDS);
+  PropertiesService.getScriptProperties().setProperty(NEXT_KEY, position);
+}
+
+/**
+ * Moves the shared position to the row and pass typed into the NEXT_HINT script property: edit the property in
+ * Project Settings, then run this from the editor straight away (keepWarm copies the cache's position over the
+ * property every 5 minutes). For example {"row":2765,"pass":0} hands out row 2,767 of the Hints tab next.
+ */
+function useSavedNextHint() {
+  const saved = JSON.parse(PropertiesService.getScriptProperties().getProperty(NEXT_KEY) || "{}");
+  moveNextHint(Math.max(0, Number(saved.row) || 0), Math.max(0, Number(saved.pass) || 0));
+  logNextHint();
+}
+
+/**
+ * Logs where the shared position is: run it from the editor to see how far the volunteers have got.
+ */
+function logNextHint() {
+  const total = rowCount("Hints");
+  const position = readPosition(CacheService.getScriptCache());
+  const batch = hintBatches(total).find((b) => position.row >= b.start && position.row < b.end) || { name: "?" };
+  const turn = position.pass >= PASSES_PER_BATCH ? "all hints going round" : `turn ${position.pass + 1} of ${PASSES_PER_BATCH}`;
+  Logger.log(`Next: row ${position.row + 2} of the Hints tab (batch ${batch.name}, ${turn}); ${position.n - FIRST_NUMBER} hints handed out so far`);
 }
 
 /**
@@ -179,27 +258,61 @@ function rowCount(name) {
  * @returns {Array[]} The rows, in the order asked for.
  */
 function cachedRows(name, width, total, indexes) {
+  const groups = [...new Set(indexes.map((i) => Math.floor(i / CACHE_ROWS)))];
+  const rowsByGroup = cachedGroups(name, groups);
+  Object.assign(rowsByGroup, readGroups(name, width, total, groups.filter((group) => !rowsByGroup[group])));
+  return indexes.map((i) => rowsByGroup[Math.floor(i / CACHE_ROWS)][i % CACHE_ROWS]);
+}
+
+/**
+ * Gets the groups of rows that are in the cache.
+ * @param {string} name - "Hints" or "Checks".
+ * @param {number[]} groups - Group numbers: group 3 is rows 30 to 39 under the header.
+ * @returns {Object} The rows of each group found, by group number.
+ */
+function cachedGroups(name, groups) {
   const cache = CacheService.getScriptCache();
   const prefix = `${cachePrefix()}:${name}`;
-  const groups = [...new Set(indexes.map((i) => Math.floor(i / CACHE_ROWS)))];
-  const hits = cache.getAll(groups.map((g) => `${prefix}:${g}`));
-  const rowsByGroup = {};
-  const fresh = {};
-  for (const group of groups) {
-    const key = `${prefix}:${group}`;
-    if (hits[key]) {
-      rowsByGroup[group] = JSON.parse(hits[key]);
-      continue;
+  const found = {};
+  for (let i = 0; i < groups.length; i += 100) {
+    const hits = cache.getAll(groups.slice(i, i + 100).map((group) => `${prefix}:${group}`));
+    for (const group of groups.slice(i, i + 100)) {
+      const hit = hits[`${prefix}:${group}`];
+      if (hit) found[group] = JSON.parse(hit);
     }
-    const first = group * CACHE_ROWS;
-    rowsByGroup[group] = tab(name).getRange(first + 2, 1, Math.min(CACHE_ROWS, total - first), width).getValues()
-      .map((row) => row.map((value) => (typeof value === "number" ? value : String(value))));
-    const text = JSON.stringify(rowsByGroup[group]);
-    // A group of unusually large hints is read from the Sheet each time rather than not at all
-    if (text.length < 90000) fresh[key] = text;
   }
-  if (Object.keys(fresh).length) cache.putAll(fresh, CACHE_SECONDS);
-  return indexes.map((i) => rowsByGroup[Math.floor(i / CACHE_ROWS)][i % CACHE_ROWS]);
+  return found;
+}
+
+/**
+ * Reads groups of rows from the Sheet and caches them. Neighbouring groups are read together, which is much
+ * quicker than one at a time.
+ * @param {string} name - "Hints" or "Checks".
+ * @param {number} width - How many columns each row has.
+ * @param {number} total - The tab's row count.
+ * @param {number[]} groups - Group numbers.
+ * @returns {Object} The rows of each group, by group number.
+ */
+function readGroups(name, width, total, groups) {
+  const sorted = [...groups].sort((a, b) => a - b);
+  const read = {};
+  for (let i = 0; i < sorted.length;) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1 && j - i < 49) j++;
+    const first = sorted[i] * CACHE_ROWS;
+    const values = tab(name).getRange(first + 2, 1, Math.min(total, (sorted[j] + 1) * CACHE_ROWS) - first, width).getValues()
+      .map((row) => row.map((value) => (typeof value === "number" ? value : String(value))));
+    const fresh = {};
+    for (let group = sorted[i]; group <= sorted[j]; group++) {
+      read[group] = values.slice(group * CACHE_ROWS - first, (group + 1) * CACHE_ROWS - first);
+      const text = JSON.stringify(read[group]);
+      // A group of unusually large hints is read from the Sheet each time rather than not at all
+      if (text.length < 90000) fresh[`${cachePrefix()}:${name}:${group}`] = text;
+    }
+    if (Object.keys(fresh).length) CacheService.getScriptCache().putAll(fresh, CACHE_SECONDS);
+    i = j + 1;
+  }
+  return read;
 }
 
 /**
@@ -220,17 +333,25 @@ function clearHintCache() {
 }
 
 /**
- * Keeps the script and its cache warm: reads a random stretch of WARM_ROWS hints and a check hint, and adds
- * the stretch to the ones new volunteers start in. installTimers runs it every 5 minutes.
+ * Keeps the script and its cache warm: reads the hints coming up after the shared position, so pages come from the
+ * cache, and a check hint. It also copies the shared position to the script properties, where it's safe if the
+ * cache drops it. installTimers runs it every 5 minutes.
  */
 function keepWarm() {
   const total = rowCount("Hints");
   if (total > 0) {
-    // Starting on a cache group's first row, so the stretch is whole groups
-    const start = CACHE_ROWS * Math.floor(Math.random() * Math.ceil(total / CACHE_ROWS));
-    hintsAfter(start, WARM_ROWS);
-    const warm = [start, ...warmStretches().filter((row) => row !== start)].slice(0, WARM_STRETCHES);
-    CacheService.getScriptCache().put(`${cachePrefix()}:warm`, JSON.stringify(warm), CACHE_SECONDS);
+    const cache = CacheService.getScriptCache();
+    const position = readPosition(cache);
+    const properties = PropertiesService.getScriptProperties();
+    if (properties.getProperty(NEXT_KEY) !== JSON.stringify(position)) properties.setProperty(NEXT_KEY, JSON.stringify(position));
+    // Far enough ahead for three times the last 5 minutes' pace
+    const last = Number(cache.get("warm:n")) || position.n;
+    cache.put("warm:n", String(position.n), CACHE_SECONDS);
+    const ahead = Math.min(MAX_AHEAD, Math.max(MIN_AHEAD, 3 * (position.n - last)));
+    const { rows } = walk(position, ahead, hintBatches(total), total);
+    const groups = [...new Set(rows.map((i) => Math.floor(i / CACHE_ROWS)))];
+    const cached = cachedGroups("Hints", groups);
+    readGroups("Hints", 2, total, groups.filter((group) => !cached[group]));
   }
   checkHint();
 }
@@ -535,6 +656,8 @@ function buildHints() {
   writeTab("Hints", ["hint_id", "hint"], hints);
   writeTab("Checks", ["hint_id", "expected", "hint"], checks);
   clearHintCache();
+  // The rows are new, so handing out starts again from the top
+  moveNextHint(0, 0);
   Logger.log(`${pairs.length} pairs: ${hints.length} hints, ${checks.length} checks`);
 }
 

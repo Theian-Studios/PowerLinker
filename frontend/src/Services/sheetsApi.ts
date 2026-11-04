@@ -122,9 +122,10 @@ export function sheetsBeacon(body: Record<string, unknown>): boolean {
 const CURSOR_KEY = "powerlinker.cursor";
 
 /**
- * Gets how far this browser has answered, so a returning volunteer picks up where they stopped. A new
- * volunteer has no place yet; the Sheet then starts them at a random hint (see asyncUseHintList).
- * @returns {number} The position of the furthest hint answered, or -1 for none.
+ * Gets the number of the furthest hint this browser has answered. The Sheet now hands out the next hints from one
+ * shared position whatever this says, but the app still sends it, and pages on past a page of hints it has
+ * already answered only while the numbers grow.
+ * @returns {number} The number of the furthest hint answered, or -1 for none.
  */
 export function savedCursor(): number {
   if (!usingSheets) return -1;

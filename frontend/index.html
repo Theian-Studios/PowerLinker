@@ -6,8 +6,9 @@
     <title>Power Linker</title>
     <script>
       // On the public site, ask the Sheet for the first hints right away, while the app's code is still
-      // loading; the app takes over this request (takeEarlyRequest in useLambdaFetch.ts). It asks for the
-      // same page the app would: after the furthest hint answered, or after the saved upcoming hints.
+      // loading; the app takes over this request (takeEarlyRequest in useLambdaFetch.ts), so the query must be
+      // the one the app would send. The Sheet hands out the next hints from one shared position whatever the
+      // query says; last_insert_time and start=random are from before it did.
       (function () {
         var url = "%VITE_SHEETS_URL%";
         if (!url || url.charAt(0) === "%") return;

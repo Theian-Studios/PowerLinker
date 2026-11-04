@@ -16,6 +16,7 @@ import useSlowDownNudge from "../../Hooks/useSlowDownNudge.ts";
 import { haptic } from "../../Services/haptics.ts";
 import { animate, prefersReducedMotion } from "../../Services/motion.ts";
 import { UnsureReason } from "../../Hooks/useQueue.ts";
+import CheckReview, { CheckReviewData, reviewFacts } from "../CheckReview/CheckReview";
 
 /** Tree relationships a record relationship can match, since records are often less specific ("parent"). */
 const RELATIVE_KINDS: Partial<Record<Relationship, Relationship[]>> = {
@@ -177,7 +178,8 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   const answered = useRef<boolean>(false);
   const shownOnce = useRef<boolean>(false);
   const BUTTONS_ENABLING_TIMEOUT_DURATION_MS = 700;
-  const [warnUser, setWarnUser] = useState<boolean>(false);
+  // A missed check hint's answer and the facts that show it, until "Got it"
+  const [checkReview, setCheckReview] = useState<(CheckReviewData & { sides: [string, string] }) | null>(null);
   // "Not sure" asks why, and offers the original record unless they've already opened it for this hint
   const [askReason, setAskReason] = useState<boolean>(false);
   const [sourceOpened, setSourceOpened] = useState<boolean>(false);
@@ -195,9 +197,24 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     // The next hint builds itself in, top to bottom, once it's on screen
     answered.current = true;
     recordVote(value);
-    // "Same person" on a hint with several conflicting facts is treated as a wrong answer for the streak
-    // Matching family outweighs a few conflicting facts, so "Same person" isn't marked as likely wrong then
-    submit(value, value === 1 && conflictCount >= STRONG_CONFLICTS && !familyAgrees, unsure);
+    // A check hint is graded on its first answer; a miss is explained with the facts that show the right one
+    const check = context.hintQue[0];
+    if (check?.dummy && !check.graded && value !== 0 && check.dummy.expected === -value) {
+      haptic("error");
+      const expected = check.dummy.expected === 1 ? 1 : -1;
+      setCheckReview({
+        expected,
+        facts: reviewFacts(expected, people),
+        sameFamily: familyAgreement.length > 0 ? listNames(familyAgreement.map((relative) => relative.who)) : undefined,
+        conflicts: conflictCount,
+        streakLost: context.streak > 0,
+        sides: isDuplicate ? ["Person 1", "Person 2"] : ["Record", "Tree"],
+      });
+    }
+    // "Same person" on a hint with several conflicting facts is treated as a wrong answer for the streak. Not when
+    // the family matches, which outweighs a few conflicting facts, or when one side's own facts can't all be true:
+    // the page tells them not to count that against a match, so it doesn't cost them their streak.
+    submit(value, value === 1 && conflictCount >= STRONG_CONFLICTS && !familyAgrees && ownConflicts.length === 0, unsure);
   }
 
   /**
@@ -246,21 +263,6 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
 
     // eslint-disable-next-line
   }, [context.hintQue[0]]);
-
-  useEffect(() => {
-      // if no warnings are given, we can skip this; strikes loaded from this session after a reload aren't
-      // a new miss, so the warning only shows once something has been answered on this page
-      if (context.strikes === 0 || context.reviewedHints.length === 0){
-        return;
-      }
-
-      // Otherwise for the first and second warning we want to 
-      // add a cautionary popup
-      setWarnUser(true);
-
-    // Only a change in strikes should warn, not each answer after one
-    // eslint-disable-next-line
-  }, [context.strikes]);
 
   useEffect(() => {
     // Nothing to pair until the first hint arrives; getPersons already reports malformed hints
@@ -393,10 +395,10 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   // The first hints are on their way: gray shapes stand in for the question and table
   const waiting = loading && context.hintQue.length === 0;
 
-  // Voting pauses while the slow-down message is up, until the user clicks "Got it"
-  const votingBlocked = !buttonsEnabled || showNudge || noHint;
+  // Voting pauses while the slow-down message or a missed check hint's explanation is up, until "Got it"
+  const votingBlocked = !buttonsEnabled || showNudge || noHint || checkReview !== null;
   // Going back to the last hint still works when there are no new ones, but not before anything's been answered
-  const previousBlocked = !buttonsEnabled || showNudge || context.reviewedHints.length === 0;
+  const previousBlocked = !buttonsEnabled || showNudge || checkReview !== null || context.reviewedHints.length === 0;
 
   // Shown above the vote buttons
   const nudge = showNudge && !loading ? (
@@ -491,13 +493,12 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   const familyAgrees = familyAgreement.length >= 2 || familyAgreement.some((relative) => relative.linked);
   const mainDiffers = (people[0]?.rows ?? []).some((row) => row.status === "bad" || row.status === "close");
   // Two copies of one person on the tree often differ only because one has someone else's death attached.
-  // When the deaths are the only conflict and the birth date or family says it's one person, say so.
+  // When the deaths are the only conflict and the same family says it's one person, say so. A matching birth
+  // alone isn't enough: two people with one name can be born the same year, and then the deaths tell them apart.
   const onlyDeathsDiffer = useMemo(() => {
-    const rows = people[0]?.rows ?? [];
-    const conflicts = rows.filter((row) => row.status === "bad");
+    const conflicts = (people[0]?.rows ?? []).filter((row) => row.status === "bad");
     const deathOnly = conflicts.length > 0 && conflicts.every((row) => ["Died", "Death place", "Buried", "Burial place"].includes(row.label));
-    const exactBirth = rows.some((row) => row.label === "Born" && row.reason === "Exact same date");
-    return isDuplicate && deathOnly && (exactBirth || familyAgrees);
+    return isDuplicate && deathOnly && familyAgrees;
   }, [people, isDuplicate, familyAgrees]);
 
   // A person whose own facts can't all be true, like a census after their own death: one of those facts is
@@ -750,13 +751,6 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                 )}
               </div>
             </div>
-          ) : warnUser ? (
-            <div className="warning-popup" role="alert">
-              <p>We use occasional check hints to make sure answers are accurate. It looks like you chose the wrong answer on one. Please take a little more care.</p>
-              <button type="button" className="vote-btn vote-btn--yes" onClick={() => setWarnUser(false)}>
-                I understand
-              </button>
-            </div>
           ) : (
             /* Phones: answers on top, Back and Not sure underneath. Desktop: all on one row. */
             <div className="vote-row">
@@ -780,6 +774,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
           )}
         </div>
       </div>
+      {checkReview && <CheckReview review={checkReview} sides={checkReview.sides} onClose={() => setCheckReview(null)} />}
       {/* The shapes show while the first hints load; this is for a reload with a hint already on screen */}
       {loading && !waiting && <Loading className="fixed" message="Loading hints…" />}
     </form>

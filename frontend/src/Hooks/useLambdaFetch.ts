@@ -61,7 +61,8 @@ export async function asyncUseHintList<T = unknown>(
     record_type: recordType,
     last_insert_time: lastInsertTime,
     count,
-    // On the public site, a volunteer with no saved place starts at a random hint the Sheet picks
+    // The Sheet hands out the next hints from one shared position and ignores this; it stays so the query matches
+    // the page's early request (index.html)
     ...(usingSheets && lastInsertTime < 0 ? { start: "random" } : {}),
     // and the Sheet sends a check hint along with the page, so a visit starts its script once, not twice
     ...(usingSheets ? { with_check: true } : {}),

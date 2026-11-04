@@ -1,139 +1,143 @@
-![OIG4 (2)](powerlinker-logo.png)
+![PowerLinker](powerlinker-logo.png)
 
-# Powerlinker (Grafter)
-Based off of FamilySearch's Source Linker (a feature allows users to link records and people on the family tree to (1) grow the tree, and (2) connect people on the tree to credible sources such as a census record, etc.) 
+# PowerLinker
 
-The Problem: 
-1. Users have to click many times on Source Linker, taking too much time for hints that are easy.
-2. Many users don't have a Family Search account (i.e. a youth group, etc.)
+PowerLinker lets volunteers help the Record Linking Lab tidy up the FamilySearch tree without a FamilySearch
+account. Each hint shows two people already on the tree, one from the 1930 census and one from the 1940 census,
+side by side with their families, and asks one question: **are they the same person?** The volunteer answers
+**Same person**, **Different**, or **Not sure** (with a reason). The lab uses the answers to decide which pairs to
+merge.
 
-The Solution: **Powerlinker**
+The hints are possible duplicates from Joe Price's Census Tree data. The public site is
+https://theian-studios.github.io/PowerLinker/, and every answer goes to a Google Sheet the lab can read.
 
-1. Users can click one button indicating that the hint is a match *(hint = record person + tree person not yet linked but seems like they are the same and should therefore be connected)*
-2. Users don't have to be logged in *(Powerlinker includes a feature that makes sure people aren't just clicking through and are correctly doing hints. Else, the user's session and all hints they've voted for are deemed invalid)*
-3. Users add a vote to a hint by clicking `Match` (+1 vote). If the hint doesn't seem like a match, the user clicks `Not a Match`(-1 vote) or `Not sure` (0 vote).
-4. Once a hint has over 3 positive votes, Dr. Price will connect them (in the future, we want to do this automatically). If a hint has over 3 negative votes, it will be labelled as unlikely to be valid and removed. Otherwise, if a hint is looked over too many times (gets 5 or so `skip` or `not sure` votes), it is deemed more difficult and the hint will be rerouted to other apps where professionals can look at it.
+## How it fits together
 
-# Where Powerlinker fits in the Vineyard:
-![OIG4 (2)](https://raw.githubusercontent.com/byuawsfhtl/tree-growth/main/docs/Misc/Power%20Linker%20Cloud%20Architecture.png?token=GHSAT0AAAAAAC7FJJCPXHKQ7DGJFA7IJX2O2BYRKIA)
-
-# TO DO:
-### TTService:
- - It seems like the column selection here could be super broken in the code that I recycled. The issue is that it's done like this across the entirety of the program. Make sure this
-is working as expected and fix it to call empty columns (probably) when selected so that the call actually grabs all of them.
-### Frontend:
-- verify new look works fine
-- have a 3 person and 6 person option that you can turn off
-### Other:
-- implement dummy hints. lambda endpoint? frontend? for now, there is a json file of dummy hints we will use. at some point, we
-should turn it into a lambda that just randomly selects from the json file so that later we can implement a more complex 
-algorithm
-- for now, have a **separate upload** for powerlinker, long-term we can do the GS integration
-- we need to store the project with the hint, pl will allow hints from any project
-
-# Frontend
-### Getting started:
-- Run `npm run dev` to start the application.
-### Techstack:
-- Application is built using `Vite` & `React` & `Typescript` + `SWC`
-### Key Models:
-| Name | Details |
-| :-------- | -------: |
-| Person | id: `string`<br>name: `string`<br>sex: `string`<br>relationship?: `string`<br>events?: `Array<Event>`<br>createNewPerson?: `boolean`|
-| Event | name: `string`<br>place?: `string`<br>date?: `string`|
-| HintInfo | id?: `string`<br>focusPerson: `Person`<br>persons?: `Array<Person>`|
-| Hint | type: `string`<br>recordInfo: `HintInfo`<br>treeData: `HintInfo`|
-| FlexibleDate | likelyDay?: `number`<br>likelyMonth?: `string`<br>likelyYear?: `number`|
-
-### Main Components:
-| Name | Details |
-| :-------- | -------: |
-| DocumentMatcher | Displays tree people `HintInfo` and record people `HintInfo` (via mapping the list of each one into a `PotentialMatch` component)|
-| PotentialMatch | Displays one tree `Person` and one record `Person`|
-| MatchTable | Contains match details and header components of the `PotentialMatch`|
-| Collapsible | Contains details of hint, can go up and down|
-### Pages:
-| Name | Details |
-| :-------- | -------: |
-| Home | Displays `DocumentMatcher` |
-| NotFound | Page not found |
-| Upload | Upload hints |
-### Custom Packages made by TreeGrowth team:
-| Name | Details |
-| :-------- | -------: |
-| `name-comparator` | Compares names to see how similar they are|
-| `getHighlightType` | Returns green, red, or yellow for how similar two dates / strings are|
-
-# Backend
-### Techstack: 
-- AWS `Lambda`, `DynamoDB`, `Cloudwatch / EventBridge(new name of Cloudwatch)`
-
-| Main functions / Lambdas | Details |
-| :----- | :-----: |
-| `handleHintList` | Returns `[Hint]` - think of it as the bare bones of a hint (`pid`, `ark`, `recordType`)|
-| `handleHintData` | Expands the hints that was retrieved by `handleHintList`. To do this, it calls `Pyfs` functions `getCompleteFamilyInfoForPid` and `getCompleteFamilyInfoForArk` to get name, relationship, events, of pid / ark and immediate family members in the hint. |
-| `handleHintComplete` | Attaches the source to people on tree, and adds any new events to the tree people that was found on the record as well. |
-| `handleHintVote` | Updates the `votes` on a hint in the `power-linker-auto` table. |
-| `handleSessionInvalidate` | Invalidates session of the current user and any votes they had done it that session. |
-
-# Terraform
-| Resource name | Details |
-| :-------- | -------: |
-| ECR Repo |  |
-| React lambda | `hint-list`: `GET`<br>`hint-vote`: `POST`<br>`hint-complete`: `POST`<br>`session-invalidate`: `POST`<br> |
-| SQS Queue | Vote queue |
-| Lambda Event Source Mapping / SQS Lambda Trigger | Get's 10 hints |
-| DynamoDB Table | `power_linker_auto` table to get hints |
-| DynamoDB Table | `power-linker-invalid-sid` stores invalid user session IDs |
-| IAM Policy | |
-
-
-# Running locally with AWS and TT
-The backend can be run via the main.py file in the backend src directory. Simply run the file using python to start it up. If there are issues with finding a module `No module named '<module_name>'`, consider running it instead as a module. You can do this with the -m tag after the python call and changing the path to the directory to be formatted similarly to an import rather than a filepath. Here is an example:
-
-`python -m powerlinker.backend.src.main`
-
-This sometimes fixes that error
-
-***Note:*** The "path" attribute is the path of the lambda you want to call, and the "event" is the event object to forward to that 
-lambda. "path" has a default value of "/hint-list" and "event" has different default values for each path (see [handle_test](./backend/awsLambda/views/main.py#L106)).
-
-# Running locally without AWS (mock backend)
-If you don't have AWS credentials or access to the private TreeTapper / Boto4GS repos, you can run the frontend against a
-local mock of the API in `backend/mock`. It serves the same routes (`GET /hints`, `PUT /hints`, `POST /session-invalidate`)
-on port 8000 of the same host the frontend is opened on (`localhost` or `127.0.0.1`).
-
-- Hints come from the sample data in `backend/public/dummy/hints.json` and are kept in memory.
-- Votes are applied right away (no SQS) using the same thresholds as `VoteService`. Settled hints leave the pool and are
-labelled `ATTACH_ME`, `REJECTED`, or `EXPERT` (sent to other apps).
-- Each visitor gets a signed, anonymous `pl_voter` cookie (HttpOnly, 400 days, renewed on every request). Dummy hints are
-graded on the server, and each voter's weight is `(correct + 1) / (answered + 2)`, so new voters start at 0.5 and earn
-trust. A vote keeps the weight its voter had when it was cast. The +3 / -3 thresholds use weighted votes; the 5-vote and
-3-skip limits still count people. One vote per voter per hint. Voters are only recorded once they vote.
-- The frontend sends cookies only when running locally, so deployed environments are unchanged.
-- Unlike the real backend, the mock doesn't send the dummy hint's answer to the browser. The frontend therefore treats
-dummy hints as normal hints and sends their votes to the server for grading, so the client-side strike and session
-invalidation logic doesn't run against the mock.
-- `GET /mock/state` shows the pool, each hint's votes, settled hints, voters, and invalidated sessions. `POST /mock/reset`
-puts every sample hint back.
-
-### Setup (once)
 ```
+GitHub Pages (the app)  ──GET hints / POST answers──▶  Apps Script (sheets/Code.gs)  ──▶  Google Sheet
+```
+
+There is no server of our own. The app is a static site; a Google Apps Script web app attached to the results
+Sheet hands out hints and writes each answer as a row. [sheets/README.md](sheets/README.md) covers the Sheet's tabs,
+loading hints, setting up and updating the script, and its limits.
+
+### How hints are handed out
+
+Every request for hints gets the next ones from one shared position in the Hints tab, so each hint is handed out
+once before any hint is handed out again. Batches go in order: batch 1's hints go round three times
+(`PASSES_PER_BATCH` in `Code.gs`) before batch 2's start, then batch 2's go round three times, and after that all
+the hints go round together. Run `logNextHint` in the Apps Script editor to see how far the volunteers have got.
+
+### What volunteers see
+
+- **A first-visit intro**: six short cards on why the work matters, how it works and what the colors mean, ending
+  with a request for their name, which goes with each answer. The **?** button opens the cards again.
+- **The comparison**: name, birth, death and both census homes for the two people, each marked green (matches),
+  yellow (close: a nickname, an initial, a year or two off) or red (conflicts), with a short reason. Family members
+  are paired up underneath. On a computer, a sidebar sums up the evidence and gives tips.
+- **Notes above the table** for things that are easy to miss: facts on one side that can't all be true, matching
+  family, and a missing birth date or birthplace, with a link to each person's tree page.
+- **Check hints**: about one in each page of hints is a pair whose answer the lab already knows. Missing one shows
+  the right answer and the facts that show it.
+- **Points**: 25 answers in a row earn 100 points. Missing a check hint, or answering "Same person" when two or
+  more of the main person's facts conflict and their families don't match, starts the count over. **Not sure**
+  never does.
+- **Bad connections**: answers wait on the phone until the Sheet confirms them, through offline spells and busy
+  moments, and the next hints are saved for the next visit.
+
+## The code
+
+| Folder | What's in it |
+|---|---|
+| `frontend/` | The app: Vite, React and TypeScript |
+| `frontend/src/Components/DocumentMatcher` | The hint screen: the question, notes, comparison, answer buttons |
+| `frontend/src/Components/CompareTable` | Builds and shows the comparison rows (`compareRows.ts`) |
+| `frontend/src/Services/highlightScoring.ts` | Scores names, dates and places green, yellow or red |
+| `frontend/src/Services/nicknames.ts` | Given names that stand for each other: Sallie and Sarah, Wm and William, Giuseppe and Joseph |
+| `frontend/src/Hooks/useQueue.ts` | Sends answers in batches and keeps them until the Sheet has them |
+| `frontend/src/Services/sheetsApi.ts` | Talks to the Sheet's script, and what the browser remembers between visits |
+| `sheets/` | `Code.gs`, the Sheet's script, and `export_hints.py`, which makes the hint files from the lab's data |
+| `backend/` | The lab's original AWS backend, and a local mock of it (below). The public site doesn't use it |
+| `terraform/`, `docker/` | Infrastructure for the AWS backend |
+| `.github/workflows/pages.yml` | Builds the app and publishes it to GitHub Pages |
+
+## Running it locally
+
+Install once:
+
+```bash
+npm --prefix frontend install
+```
+
+Against the Sheet: put `VITE_SHEETS_URL=<the script's /exec URL>` in `frontend/.env.sheets.local`, then
+
+```bash
+npm --prefix frontend run dev -- --mode sheets
+```
+
+Point it at the deployed script only to look around: every answer you give is saved to the real Sheet.
+
+Before publishing, check that it builds and lints:
+
+```bash
+npm --prefix frontend run build
+```
+
+```bash
+npm --prefix frontend run lint
+```
+
+## Publishing
+
+- **The app**: `pages.yml` builds and publishes the site when its branch is pushed, using the `SHEETS_URL`
+  repository variable for the script's address.
+- **The script**: paste `sheets/Code.gs` into the Apps Script editor, save, then Deploy → Manage deployments → edit
+  → Version: New version, so the URL stays the same. See [sheets/README.md](sheets/README.md).
+
+Real people's records stay in the Sheet. The hint files `sheets/*.local.csv` are gitignored and must never be
+committed.
+
+## The lab's AWS backend
+
+PowerLinker started inside the lab with record-attachment hints (a census record and a person on the tree),
+served by a Python Lambda (built from `docker/`), with hints in DynamoDB, votes through an SQS queue, and FamilySearch
+data through TreeTapper. That code is still here in `backend/src`, with its Terraform and Docker setup, and the app
+still works with it when `VITE_SHEETS_URL` isn't set: it shows a hint-type menu, sends answers to the lab's API,
+and drops a session's unsent votes after a missed check hint instead of keeping them.
+
+### Running against a mock of it
+
+Without AWS credentials or the private TreeTapper and Boto4GS packages, run the app against the local mock in
+`backend/mock`. It serves the same routes (`GET /hints`, `PUT /hints`, `POST /session-invalidate`) on port 8000 of
+the host the app is opened on.
+
+- Hints come from `backend/public/dummy/hints.json` and are kept in memory.
+- Votes count right away, with the same thresholds as `VoteService`. Settled hints leave the pool, labelled
+  `ATTACH_ME`, `REJECTED` or `EXPERT`.
+- Each visitor gets a signed, anonymous `pl_voter` cookie. Check hints are graded on the server, and each voter's
+  weight is `(correct + 1) / (answered + 2)`, so new voters start at 0.5 and earn trust. The +3 / -3 thresholds use
+  weighted votes; the 5-vote and 3-skip limits count people. One vote per voter per hint.
+- `GET /mock/state` shows the pool, votes, settled hints, voters and ended sessions. `POST /mock/reset` puts every
+  sample hint back.
+
+Set up once:
+
+```bash
 python3.13 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/mock/requirements.txt
 ```
 
-### Run
-From the repo root:
+```bash
+.venv/bin/pip install -r backend/mock/requirements.txt
 ```
-.venv/bin/python -m backend.mock.server
-```
-or from `frontend/`: `npm run mock-backend` (uses `.venv` automatically). Then start the frontend with `npm run dev` and
-open http://localhost:5173. To try the profile button's VIP code, set `MOCK_VIP_CODE` to a code of your choice before
-starting the mock; it accepts no code without it. Don't put the real code in the repo, which is public.
 
-### Tests
+Run the mock, then the app with `npm --prefix frontend run dev`, and open http://localhost:5173:
+
+```bash
+npm --prefix frontend run mock-backend
 ```
+
+Test it:
+
+```bash
 .venv/bin/python -m pytest backend/tests/mock
 ```

@@ -3,6 +3,7 @@ import FlexibleDate from "flexibledatets";
 // libraries it needs, were most of the app's download
 import nameVariants from "namecomparator-ts/dist/data/nicknames/nameVariants.json";
 import { HighlightType } from "../Models/HighlightType";
+import { fixLabVariants, nameSex, NICKNAMES } from "./nicknames";
 
 /**
  * Returns whether a string is empty or contains only whitespace.
@@ -46,12 +47,45 @@ let variantGroups: Map<string, number[]> | undefined;
  */
 function variantsByName(): Map<string, number[]> {
   if (variantGroups) return variantGroups;
-  const groups = [...Object.values(nameVariants as Record<string, string[]>), ...NICKNAMES];
+  const groups = [...fixLabVariants(Object.values(nameVariants as Record<string, string[]>)), ...NICKNAMES];
   variantGroups = new Map();
   groups.forEach((names, group) => {
     for (const name of names) variantGroups!.set(name, [...(variantGroups!.get(name) ?? []), group]);
   });
   return variantGroups;
+}
+
+/** Spelling score at which a man's and a woman's name could be one name misspelled: Francis and Frances. */
+const NEAR_SPELLING = 85;
+
+/**
+ * Endings that make a woman's name of a man's, for names the lists don't know: Robert and Roberta, Gerald and
+ * Geraldine. Not "e" or "ie", which also end men's names and their misspellings (Wille for Willie).
+ */
+const FEMININE_ENDING = /^(a|ina|ine|ette|etta|elle)$/;
+
+/**
+ * Checks whether two given names are a man's and a woman's: Louis and Louise, John and Jane. Names used for both,
+ * like Jean, Marion or Pat, never count, and a name the lists don't know counts only as a man's name with a
+ * woman's ending (Roberta).
+ * @param a - One name, lowercase.
+ * @param b - The other.
+ * @returns True when one is a man's name and the other a woman's.
+ */
+export function differentSex(a: string, b: string): boolean {
+  [a, b] = [a, b].map((name) => nameWords(name).join(""));
+  const sa = nameSex(a);
+  const sb = nameSex(b);
+  if (sa && sb) return sa !== sb;
+  /**
+   * Checks whether a name is a man's with a woman's ending added: Robert and Roberta.
+   * @param man - The shorter name.
+   * @param other - The longer one.
+   * @returns True when it is.
+   */
+  const feminine = (man: string, other: string) => nameSex(man) === "male" && nameSex(other) === undefined
+    && other.startsWith(man) && FEMININE_ENDING.test(other.slice(man.length));
+  return feminine(a, b) || feminine(b, a);
 }
 
 /** Score for two words that sound alike by their sound codes but are spelled further apart. */
@@ -110,6 +144,11 @@ function consonantOutline(word: string): string {
  */
 function wordSimilarity(a: string, b: string): number {
   if (a === b) return 100;
+  // A man's and a woman's name are never variants of each other; only a near spelling (Francis and Frances) is close
+  if (differentSex(a, b)) {
+    const spelling = spellingRatio(a, b);
+    return spelling >= NEAR_SPELLING ? spelling : Math.min(spelling, 40);
+  }
   const groups = variantsByName().get(a);
   if (groups && variantsByName().get(b)?.some((group) => groups.includes(group))) return 100;
   if (a.length === 1 || b.length === 1) return a[0] === b[0] ? 80 : 0;
@@ -252,14 +291,25 @@ function placeParts(place: string): string[] {
 const CITY_NAMES = new Set(["salt lake"]);
 
 /**
- * Drops a census label from a town, so "Toledo City", "Medford Township" and "Middleport Borough" match
- * "Toledo", "Medford" and "Middleport". "New York City" and "Kansas City" keep it, or they'd become states.
+ * Census labels for a town, written out or shortened as census takers did: "Salem Twp", "Media Boro", "Fort
+ * Plain Vil", and Maine's plantations.
+ */
+export const TOWN_LABEL = "city|town|township|twp|twsp|twnshp|tshp|tp|borough|boro|bor|village|vill|vil|vlg|plantation|plt";
+const LABEL_FIRST = new RegExp(`^(${TOWN_LABEL})\\s+of\\s+(.+)$`);
+const LABEL_LAST = new RegExp(`\\s+(${TOWN_LABEL})$`);
+
+/**
+ * Drops a census label from a town, so "Toledo City", "Medford Township", "Salem Twp", "Town of Salem" and
+ * "Middleport Borough" match "Toledo", "Medford", "Salem" and "Middleport". "New York City" and "Kansas City"
+ * keep it, or they'd become states.
  * @param part - One cleaned place part.
  * @returns The part without its label.
  */
-function withoutTownSuffix(part: string): string {
-  const bare = part.replace(/\s+(city|town|township|borough|village)$/, "");
-  return bare !== part && /city$/.test(part) && (US_STATES.has(bare) || CITY_NAMES.has(bare)) ? part : bare;
+export function withoutTownSuffix(part: string): string {
+  // "Town of Salem" is "Salem Town"
+  const labelLast = part.replace(LABEL_FIRST, "$2 $1");
+  const bare = labelLast.replace(LABEL_LAST, "");
+  return bare !== labelLast && /city$/.test(labelLast) && (US_STATES.has(bare) || CITY_NAMES.has(bare)) ? labelLast : bare;
 }
 
 /** The nations of the United Kingdom, which act like US states: Glasgow and Manchester are in different ones. */
@@ -567,47 +617,6 @@ export function soundCode(name: string): string {
  */
 const SAME_SURNAME_SCORE = 81;
 
-/** Common short forms and spellings of given names, each listed with the forms it matches. */
-const NICKNAMES: string[][] = [
-  ["william", "bill", "billy", "will", "willie", "wm"],
-  ["robert", "bob", "bobby", "rob", "bert"],
-  ["james", "jim", "jimmy", "jas", "jamie"],
-  ["john", "jack", "johnny", "jno", "giovanni", "johann", "juan", "jean"],
-  ["joseph", "joe", "jos", "giuseppe", "jose", "josef"],
-  ["charles", "charlie", "chas", "chuck", "carl", "karl", "carlo", "carlos"],
-  ["thomas", "tom", "tommy", "thos"],
-  ["richard", "dick", "rick", "rich"],
-  ["edward", "ed", "eddie", "ned", "ted", "edw"],
-  ["henry", "harry", "hank", "heinrich", "enrico"],
-  ["francis", "frank", "francesco", "franz", "francisco", "fran"],
-  ["frances", "fannie", "fanny", "francesca", "frankie"],
-  ["anthony", "tony", "antonio", "anton"],
-  ["samuel", "sam", "sammy", "salvatore"],
-  ["michael", "mike", "mick", "michele", "miguel"],
-  ["margaret", "maggie", "peggy", "meg", "margie", "marguerite", "margarethe"],
-  ["elizabeth", "liz", "lizzie", "beth", "betty", "bessie", "eliza", "elisabeth", "elsie"],
-  ["mary", "polly", "mae", "may", "mamie", "maria", "marie", "mollie", "molly"],
-  ["catherine", "katherine", "kate", "katie", "kitty", "cathy", "katharina", "caterina"],
-  ["sarah", "sally", "sadie", "sara"],
-  ["ann", "anna", "anne", "annie", "nancy", "hannah"],
-  ["helen", "nellie", "ellen", "elena", "helena"],
-  ["dorothy", "dot", "dottie", "dora"],
-  ["alexander", "alex", "sandy", "alessandro"],
-  ["frederick", "fred", "freddie", "fritz", "federico"],
-  ["louis", "lou", "louie", "luigi", "ludwig", "lewis"],
-  ["peter", "pete", "pietro", "pedro"],
-  ["isaac", "ike"], ["abraham", "abe"], ["jacob", "jake"], ["nathaniel", "nat"],
-  ["theodore", "ted", "teddy"], ["lawrence", "larry", "laurence"], ["harold", "hal"],
-  ["albert", "al", "bert"], ["benjamin", "ben", "benny"], ["patrick", "pat", "paddy"],
-  ["daniel", "dan", "danny"], ["david", "dave"], ["george", "geo", "giorgio", "jorge"],
-  ["johanna", "joanna", "joan", "jennie"], ["jane", "jennie", "jenny", "janie", "jean"], ["lucinda", "lula", "cindy", "lucy"], ["louisa", "lula", "lou", "louise"], ["emma", "emmy"], ["minnie", "wilhelmina", "mina"],
-  ["stephen", "steven", "steve", "stevie"], ["augusta", "gussie", "gussy", "augustina"], ["cecilia", "cecelia", "cecile", "celia"], ["rebecca", "becky", "beckie", "reba", "rivka"], ["dorothy", "dorie", "dolly"],
-  ["edward", "ed", "edd", "eddy"], ["magdalene", "magdalena", "magdelene", "magdeline", "magdaline", "magda", "maggie", "madeline"],
-  // Yiddish and Hebrew names and the English ones their bearers took in America
-  ["meyer", "meier", "myer", "mayer", "max"], ["moses", "moshe", "moishe", "morris", "maurice"], ["hyman", "chaim", "hymie"],
-  ["solomon", "sol", "shlomo", "salomon"], ["isidore", "isadore", "izzy", "isador"],
-];
-
 /**
  * Splits a given name into lowercase parts, e.g. "Roy W." to ["roy", "w"].
  * @param name - The given names.
@@ -615,6 +624,27 @@ const NICKNAMES: string[][] = [
  */
 function givenParts(name: string): string[] {
   return name.toLowerCase().replace(/[.,]/g, " ").split(/\s+/).filter(Boolean);
+}
+
+/** Each name in the app's nickname lists, with the numbers of the lists it's in. */
+let nicknameGroups: Map<string, number[]> | undefined;
+
+/**
+ * Checks whether one of the nickname lists holds both names: Sallie and Sarah, Wm and William, Giuseppe and
+ * Joseph. Accents don't count, so José is Jose.
+ * @param a - One given name, lowercase.
+ * @param b - The other.
+ * @returns True when they're forms of one name.
+ */
+function nicknamesMatch(a: string, b: string): boolean {
+  if (!nicknameGroups) {
+    nicknameGroups = new Map();
+    NICKNAMES.forEach((names, group) => {
+      for (const name of names) nicknameGroups!.set(name, [...(nicknameGroups!.get(name) ?? []), group]);
+    });
+  }
+  const groups = nicknameGroups.get(nameWords(a).join(""));
+  return Boolean(groups && nicknameGroups.get(nameWords(b).join(""))?.some((group) => groups.includes(group)));
 }
 
 /**
@@ -626,9 +656,10 @@ function givenParts(name: string): string[] {
  */
 export function sameGivenName(a: string, b: string): boolean {
   if (a === b) return true;
+  if (differentSex(a, b)) return false;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
   if (short.length >= 3 && long.startsWith(short)) return true;
-  if (NICKNAMES.some((group) => group.includes(a) && group.includes(b))) return true;
+  if (nicknamesMatch(a, b)) return true;
   return getNameComparisonConfidence(a, b) >= 90;
 }
 
@@ -729,6 +760,14 @@ export function scoreName(
   const swapped = middleA.length > 0 && middleB.length > 0
     && middleB.some((y) => fits(firstA, y)) && middleA.some((x) => fits(x, firstB));
   if ((goesByMiddle || swapped) && (surnameClose || female)) return { highlight: HighlightType.Yellow, reason: "Possibly goes by middle name" };
+
+  // A man's first name and a woman's (John and Jane, Louis and Louise) name different people. Spelled so alike that
+  // one may be a slip for the other (Francis and Frances, Jesse and Jessie), with the same surname, it's worth a look.
+  if (differentSex(firstA, firstB)) {
+    return spellingRatio(firstA, firstB) >= NEAR_SPELLING && (surnameClose || female)
+      ? { highlight: HighlightType.Yellow, reason: "Man’s and woman’s spellings" }
+      : { highlight: HighlightType.Red, reason: "Man’s and woman’s names" };
+  }
 
   const firstScore = getNameComparisonConfidence(firstA, firstB);
   if (firstScore >= 60 && (surnameClose || female)) return { highlight: HighlightType.Yellow, reason: "Similar names" };

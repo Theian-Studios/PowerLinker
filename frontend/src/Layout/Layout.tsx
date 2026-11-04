@@ -96,11 +96,7 @@ export function Layout() {
                     onClick={() => setContext((prev) => ({ ...prev, streakLost: undefined }))}>
                     <div className="streak-lost">
                         <div className="streak-lost-title" id="streak-lost-title">Back to 0</div>
-                        <p>
-                            {context.streakLost === "check"
-                                ? "That was a check hint, and its answer was different."
-                                : "Too many of their own facts conflicted for this to be the same person."}
-                        </p>
+                        <p>Too many of their own facts conflicted for this to be the same person.</p>
                     </div>
                 </div>
             )}

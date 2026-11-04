@@ -14,7 +14,7 @@ GitHub Pages (the app)  ──GET hints / POST answers──▶  Apps Script (Co
 | Summary | Live counts in four sections: progress through the hints, answers (with Not sure reasons), volunteers, and check hints (accuracy leaves out Not sure) |
 | Volunteers | One row per voter ID, most answers first: their latest name, answers, last answer, check hints right and accuracy, and Not sure count. All formulas over Votes |
 | Votes | One row per answer: time received, anonymous voter ID, session, hint ID, whether it was a check hint and if it was right ("Not sure" is left blank), the answer, seconds spent, VIP, both people's tree IDs, the answer's ID, when it was given, for "Not sure" why (not enough info, facts disagree, or other), and the name the volunteer gave, if any |
-| Hints | The pairs to vote on. Each volunteer starts at a random row and goes on from there, wrapping back to the top at the end. Each row is a hint ID and the hint as JSON |
+| Hints | The pairs to vote on, handed out in order from one shared position (see below). Each row is a hint ID, starting with its batch ("b1-", "b2-"), and the hint as JSON |
 | Checks | Check hints with known answers: 1 is the same person, -1 is different people |
 | Voters | People who entered the VIP code |
 | Sessions | Sessions ended after three missed check hints, with the voter ID and name |
@@ -34,6 +34,22 @@ under slightly different spellings, so the voter ID is the reliable way to group
 The Votes tab has room for 50,000 answers, with `time` and `answered_at` formatted as date and time. Rows
 the script adds past that may show only the date; select columns A and O and choose Format → Number →
 Date time.
+
+## How hints are handed out
+
+Every request for hints gets the next ones from one shared position, whatever the app asks for, so each hint is
+handed out once before any is handed out again. Batches go in the order they were added: batch 1's hints go round
+`PASSES_PER_BATCH` times (3) before batch 2's start, then batch 2's go round 3 times, and after every batch has had
+its turns, all the hints go round together. A hint handed out isn't always answered (a volunteer can stop partway
+through a page), so after its turns a hint has up to 3 answers.
+
+To see how far the volunteers have got, run `logNextHint` in the editor: it logs the next row, its batch and turn,
+and how many hints have been handed out. The position is kept in the script's cache, and `keepWarm` copies it to
+the script property `NEXT_HINT` every 5 minutes in case the cache drops it. To move it, edit that property in
+Project Settings to the row and turn to hand out next, like `{"row":2765,"pass":0}` for row 2,767 of the Hints tab
+(`row` 0 is the first row under the header, and `pass` 3 means all the hints going round together), then run
+`useSavedNextHint` straight away. `buildHints` starts it from the top itself. A batch added after every batch has had its turns
+just joins the round of all the hints.
 
 ## Making the hints
 
@@ -97,10 +113,9 @@ the same.
 ## The cache
 
 Requests for hints and check hints read them through the script's cache, 10 rows at a time, so most don't
-open the Sheet, which is most of a request's time. Each time `keepWarm` runs it reads a random stretch of 40
-hints. A new volunteer's first page comes from one of the last 36 of those stretches, so it's already cached,
-but it's numbered from a random row and their next pages carry on from there: volunteers who get the same
-stretch share only that first page. Cached rows last 6 hours. `buildHints` and `addBatch`
+open the Sheet, which is most of a request's time. Each time `keepWarm` runs it reads the hints coming up after
+the shared position: three times as many as were handed out in the last 5 minutes, between 600 and 3,000, so
+pages come from the cache even when a room of volunteers starts at once. Cached rows last 6 hours. `buildHints` and `addBatch`
 start a fresh cache themselves. After editing the Hints or Checks tab by hand, run `clearHintCache` in the
 editor, or volunteers can get the old rows for up to 6 hours.
 

@@ -370,17 +370,6 @@
     cursor: pointer;
 }
 
-/* Check-hint warning, shown in place of the answers */
-.warning-popup {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.warning-popup p {
-    font-size: 0.95rem;
-    line-height: 1.4;
-}
-
 /* The Not sure prompt that offers the original record */
 .confirm-same {
     display: flex;

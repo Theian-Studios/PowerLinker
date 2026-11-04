@@ -208,9 +208,9 @@ export function useHomeHandlers({
         const missedCheck = Boolean(hint.dummy && hint.dummy.expected === -vote);
         setContext((prev) => {
             const progress = nextProgress(prev, missedCheck || likelyWrong, vote === 0);
-            // Say why the streak was lost, if it was
-            const streakLost = prev.streak > 0 && progress.streak === 0 && !progress.justRewarded
-                ? (missedCheck ? "check" : "conflicts")
+            // Say why the streak was lost, if it was; a missed check hint has its own explanation instead
+            const streakLost = prev.streak > 0 && progress.streak === 0 && !progress.justRewarded && !missedCheck
+                ? "conflicts"
                 : undefined;
             saveProgress(progress.streak, progress.points);
             // Each hint counts once toward the all-time total, even if it's answered again after Back

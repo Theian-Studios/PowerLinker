@@ -1,0 +1,85 @@
+/* After a missed check hint: its answer and the facts that show it, in the centered popup */
+.check-review {
+    width: 100%;
+    max-width: 380px;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+}
+.check-review-title {
+    margin-bottom: 4px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--pl-ink);
+}
+.streak-lost .check-review-answer {
+    margin-bottom: 12px;
+    font-size: 1rem;
+}
+.check-review-lead {
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--pl-muted);
+    text-align: left;
+}
+
+/* Laid out like the hint's comparison table */
+.check-review-table {
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    background: var(--pl-surface);
+    overflow: hidden;
+    text-align: left;
+}
+.check-review-row {
+    display: grid;
+    grid-template-columns: 74px 1fr 1fr 20px;
+    column-gap: 6px;
+    align-items: center;
+    padding: 8px 10px 6px;
+    border-top: 1px solid var(--pl-border);
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+}
+.check-review-row--head {
+    padding: 4px 10px;
+    border-top: none;
+    background: var(--pl-surface-alt);
+    font-size: 0.75rem;
+    color: var(--pl-muted);
+}
+.check-review-row--close { background: var(--pl-close-wash); }
+.check-review-row--bad { background: var(--pl-bad-wash); }
+.check-review-label {
+    font-size: 0.75rem;
+    color: var(--pl-muted);
+}
+.check-review-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+.check-review-icon--ok { background: var(--pl-ok-bg); color: var(--pl-ok); }
+.check-review-icon--close { background: var(--pl-close-bg); color: var(--pl-close); }
+.check-review-icon--bad { background: var(--pl-bad-bg); color: var(--pl-bad); }
+.check-review-reason {
+    grid-column: 2 / -1;
+    font-size: 0.75rem;
+}
+.check-review-reason--close { color: var(--pl-close); }
+.check-review-reason--bad { color: var(--pl-bad); }
+
+.streak-lost .check-review-note {
+    margin-top: 10px;
+    font-size: 0.88rem;
+    text-align: left;
+}
+.streak-lost .check-review-care {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: var(--pl-muted);
+}

@@ -20,8 +20,8 @@ export interface Context {
   justRewarded?: boolean;
   /** Whether the last answer added to the streak, so going back can undo exactly that. */
   lastCounted?: boolean;
-  /** Set when the last answer ended a streak: a missed check hint, or "Same person" despite strong conflicts. */
-  streakLost?: "check" | "conflicts";
+  /** Set when "Same person" despite strong conflicts ended a streak. A missed check hint is explained on its own. */
+  streakLost?: "conflicts";
 }
 
 
