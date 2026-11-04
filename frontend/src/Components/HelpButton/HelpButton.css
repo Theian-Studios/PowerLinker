@@ -1,0 +1,45 @@
+/* Question mark in the header's top-left corner, mirroring the profile button on the right */
+.help-button {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    box-shadow: none;
+    background: transparent;
+    color: var(--pl-muted);
+    cursor: pointer;
+}
+.help-button:hover {
+    background: var(--pl-surface-alt);
+    color: var(--pl-ink);
+}
+.help-button:focus-visible {
+    outline: 2px solid var(--pl-olive);
+    outline-offset: 2px;
+}
+.help-button svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+/* The question mark's dot, drawn as a filled point */
+.help-button .help-dot {
+    fill: currentColor;
+}
+
+@media screen and (min-width: 601px) {
+    .help-button {
+        top: 18px;
+        left: 20px;
+    }
+}

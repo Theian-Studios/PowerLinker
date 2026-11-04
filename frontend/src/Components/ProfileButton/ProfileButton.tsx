@@ -1,34 +1,29 @@
 import { FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { CONTEXT, ContextState } from "../../Models/Context";
 import { MAX_NAME_LENGTH, saveVolunteerName, shouldAskName, volunteerName } from "../../Services/sheetsApi";
+import Tutorial from "../Tutorial/Tutorial";
 import "./ProfileButton.css";
 
 /**
  * ProfileButton Component - A person icon in the header that opens a small profile panel: points and hints
  * answered all time in this browser, and the volunteer's name, which goes with each answer so the lab knows
- * who did which records. On a first visit to the public site the same panel opens by itself to ask for the
- * name, which they can skip.
+ * who did which records. On a first visit to the public site the short intro opens by itself as a welcome,
+ * and it ends by asking for the name.
  * @returns {JSX.Element} The button, and the panel while it's open.
  */
 export default function ProfileButton() {
-  // A first visit opens the panel as a welcome; it's only asked once
+  // A first visit opens the intro as a welcome; the name is only asked once
   const [welcome, setWelcome] = useState<boolean>(shouldAskName);
-  const [open, setOpen] = useState<boolean>(welcome);
+  const [open, setOpen] = useState<boolean>(false);
   const [name, setName] = useState<string>(volunteerName);
   const [saved, setSaved] = useState<boolean>(false);
   const input = useRef<HTMLInputElement>(null);
   const { context } = useContext(CONTEXT) as ContextState;
 
   /**
-   * Closes the panel. Closing the welcome counts as skipping it, so it doesn't come back.
+   * Closes the panel.
    */
-  const close = () => {
-    if (welcome) {
-      saveVolunteerName(volunteerName());
-      setWelcome(false);
-    }
-    setOpen(false);
-  };
+  const close = () => setOpen(false);
 
   // Escape closes the panel, like other popups
   useEffect(() => {
@@ -43,8 +38,7 @@ export default function ProfileButton() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line
-  }, [open, welcome]);
+  }, [open]);
 
   /**
    * Opens the panel with the saved name.
@@ -56,18 +50,13 @@ export default function ProfileButton() {
   };
 
   /**
-   * Saves the name; the welcome closes once it's given.
+   * Saves the name.
    * @param event - The form submission.
    */
   const save = (event: FormEvent) => {
     event.preventDefault();
     saveVolunteerName(name);
     setName(volunteerName());
-    if (welcome) {
-      setWelcome(false);
-      setOpen(false);
-      return;
-    }
     setSaved(true);
   };
 
@@ -90,26 +79,22 @@ export default function ProfileButton() {
             onSubmit={save}
           >
             <div className="profile-head">
-              <h2 id="profile-title">{welcome ? "Welcome!" : "Profile"}</h2>
+              <h2 id="profile-title">Profile</h2>
               <button type="button" className="profile-close" aria-label="Close" onClick={close}>✕</button>
             </div>
-            {!welcome && (
-              <>
-                <dl className="profile-stats">
-                  <div className="profile-stat">
-                    <dt>Points</dt>
-                    <dd>{context.points.toLocaleString()}</dd>
-                  </div>
-                  <div className="profile-stat">
-                    <dt>Hints answered</dt>
-                    <dd>{context.answered.toLocaleString()}</dd>
-                  </div>
-                </dl>
-                <p className="profile-note">All time, on this device.</p>
-              </>
-            )}
+            <dl className="profile-stats">
+              <div className="profile-stat">
+                <dt>Points</dt>
+                <dd>{context.points.toLocaleString()}</dd>
+              </div>
+              <div className="profile-stat">
+                <dt>Hints answered</dt>
+                <dd>{context.answered.toLocaleString()}</dd>
+              </div>
+            </dl>
+            <p className="profile-note">All time, on this device.</p>
             <label className="profile-label" htmlFor="profile-name">
-              {welcome ? "What’s your name? It goes with your answers so the lab knows who did which records." : "Your name"}
+              Your name
             </label>
             <div className="profile-row">
               <input
@@ -125,19 +110,15 @@ export default function ProfileButton() {
                 autoComplete="name"
                 spellCheck={false}
               />
-              <button type="submit" className="profile-save" disabled={welcome && !name.trim()}>
+              <button type="submit" className="profile-save">
                 Enter
               </button>
             </div>
             {saved && <p className="profile-message profile-message--accepted" role="status">Saved.</p>}
-            {welcome && (
-              <button type="button" className="profile-skip" onClick={close}>
-                Skip for now
-              </button>
-            )}
           </form>
         </div>
       )}
+      {welcome && <Tutorial welcome onClose={() => setWelcome(false)} />}
     </>
   );
 }

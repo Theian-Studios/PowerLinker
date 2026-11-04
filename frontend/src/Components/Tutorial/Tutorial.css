@@ -1,0 +1,443 @@
+/* Six-card intro over the page: one card at a time, swiped or stepped with Next */
+.intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(38, 38, 36, 0.35);
+}
+
+.intro-panel {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    padding: 20px 0 16px;
+    border-radius: 20px;
+    background: var(--pl-bg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+/* The app's global button style adds a shadow and a minimum width; these buttons don't want either */
+.intro-skip,
+.intro-close,
+.intro-dot,
+.intro-next {
+    min-width: 0;
+    box-shadow: none;
+}
+
+.intro-skip {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 1;
+    padding: 6px 8px;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--pl-muted);
+    cursor: pointer;
+}
+.intro-skip:hover {
+    color: var(--pl-ink);
+    text-decoration: underline;
+}
+
+/* Opened again from the ? button: a ✕ in the corner, like the profile panel's */
+.intro-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    font-size: 0.95rem;
+    line-height: 1;
+    color: var(--pl-muted);
+    cursor: pointer;
+}
+.intro-close:hover {
+    background: var(--pl-surface-alt);
+    color: var(--pl-ink);
+}
+
+/* Cards sit side by side and slide; the tallest sets the height, so the buttons don't jump */
+.intro-viewport {
+    overflow: hidden;
+    touch-action: pan-y;
+}
+.intro-track {
+    display: flex;
+    align-items: stretch;
+    transition: transform 0.3s ease;
+}
+.intro-track.is-dragging {
+    transition: none;
+}
+.intro-card {
+    flex: 0 0 100%;
+    box-sizing: border-box;
+    min-height: 330px;
+    padding: 12px 20px 4px;
+    text-align: center;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: var(--pl-ink);
+}
+.intro-card p {
+    margin: 8px 0;
+}
+
+/* Cards 1 and 2 fill the card's height so their last line can sit at the bottom, just above the dots. On card 1
+   the logo and title are at the top and the paragraph is centered in the space below. */
+.intro-spread {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.intro-logo {
+    display: block;
+    align-self: center;
+    width: 64px;
+    height: 64px;
+    margin: 10px 0 4px;
+}
+.intro-bottom {
+    margin: auto 0 0 !important;
+    padding-top: 12px;
+}
+.intro-middle {
+    margin: auto 0 !important;
+    padding: 12px 0;
+    text-wrap: balance;
+}
+.intro-closing {
+    margin: 0 !important;
+    padding-top: 12px;
+    font-size: 1.05rem;
+}
+
+.intro-art {
+    margin: 14px 0 6px;
+    font-size: 2.4rem;
+    line-height: 1.2;
+}
+.intro-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px 0 12px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--pl-ink);
+}
+.intro-title--ok { color: var(--pl-ok); }
+.intro-title--close { color: var(--pl-close); }
+.intro-title--bad { color: var(--pl-bad); }
+
+.intro-muted {
+    color: var(--pl-muted);
+}
+/* Numbered steps, each in its own box */
+.intro-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    text-align: left;
+}
+/* Number on the left, text beside it, wrapping under itself rather than under the number */
+.intro-steps li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    column-gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 9px 12px;
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    background: var(--pl-surface);
+}
+.intro-steps li::before {
+    content: counter(step);
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--pl-olive);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+/* Both answer buttons on one line under the step, as they sit side by side in the app */
+.intro-choices {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+/* Narrow phones: the row starts under the step number, and the buttons get a little smaller, so both still
+   fit side by side */
+@media (max-width: 370px) {
+    .intro-steps .intro-step--answers {
+        align-items: start;
+    }
+    .intro-choices {
+        gap: 4px;
+        margin-left: -32px;
+    }
+    .intro-choices .intro-pill {
+        padding: 2px 6px;
+        font-size: 0.78rem;
+    }
+}
+/* The welcome's last card: the name question, the box, and a quiet way past it */
+.intro-name {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 6px;
+}
+.intro-name label {
+    color: var(--pl-muted);
+}
+/* 16px text keeps iPhones from zooming in on the field */
+.intro-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    font: inherit;
+    font-size: 16px;
+    text-align: center;
+    color: var(--pl-ink);
+    background: var(--pl-surface);
+}
+.intro-input:focus {
+    outline: none;
+    border-color: var(--pl-olive-light);
+    box-shadow: inset 0 0 0 1px var(--pl-olive-light);
+}
+.intro-skip-name {
+    align-self: center;
+    min-width: 0;
+    margin: auto 0 0;
+    padding: 4px 8px;
+    border: none;
+    box-shadow: none;
+    background: none;
+    font: inherit;
+    font-size: 0.88rem;
+    color: var(--pl-muted);
+    cursor: pointer;
+}
+.intro-skip-name:hover {
+    color: var(--pl-ink);
+    text-decoration: underline;
+}
+
+/* The answer buttons, drawn small in their real colors */
+.intro-pill {
+    display: inline-block;
+    margin: 2px 0;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.intro-pill--no {
+    background: #e4e1d9;
+    color: var(--pl-ink);
+}
+.intro-pill--yes {
+    background: #6d8a2a;
+    color: #fff;
+}
+
+.intro-icon {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+.intro-icon--ok { background: var(--pl-ok-bg); color: var(--pl-ok); }
+.intro-icon--close { background: var(--pl-close-bg); color: var(--pl-close); }
+.intro-icon--bad { background: var(--pl-bad-bg); color: var(--pl-bad); }
+
+/* A few rows laid out like the hint's comparison table */
+.intro-table,
+.intro-family {
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    background: var(--pl-surface);
+    overflow: hidden;
+    text-align: left;
+}
+.intro-row {
+    display: grid;
+    grid-template-columns: 74px 1fr 1fr 20px;
+    column-gap: 6px;
+    align-items: center;
+    padding: 8px 10px 6px;
+    border-top: 1px solid var(--pl-border);
+    font-size: 0.88rem;
+}
+.intro-row--head {
+    padding: 4px 10px;
+    border-top: none;
+    background: var(--pl-surface-alt);
+    font-size: 0.75rem;
+    color: var(--pl-muted);
+}
+.intro-row--close { background: var(--pl-close-wash); }
+.intro-row--bad { background: var(--pl-bad-wash); }
+.intro-label {
+    font-size: 0.75rem;
+    color: var(--pl-muted);
+}
+.intro-reason {
+    grid-column: 2 / -1;
+    font-size: 0.75rem;
+}
+.intro-reason--ok { color: var(--pl-ok); }
+.intro-reason--close { color: var(--pl-close); }
+.intro-reason--bad { color: var(--pl-bad); }
+
+.intro-family {
+    margin-top: 10px;
+}
+.intro-family-head {
+    padding: 4px 10px;
+    background: var(--pl-surface-alt);
+    font-size: 0.75rem;
+    color: var(--pl-muted);
+}
+.intro-family-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--pl-border);
+    font-size: 0.88rem;
+}
+
+.intro-verdict {
+    margin-top: 12px !important;
+    padding: 9px 12px;
+    border-radius: 12px;
+}
+.intro-verdict--ok { background: var(--pl-ok-bg); color: #2f4d0c; }
+.intro-verdict--close { background: var(--pl-close-bg); color: #6b4900; }
+.intro-verdict--bad { background: var(--pl-bad-bg); color: #7a2a1d; }
+
+/* The header's points bar, as it looks on a first visit */
+.intro-points {
+    margin: 18px 0 0;
+    text-align: left;
+}
+.intro-points-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.8rem;
+    color: var(--pl-muted);
+}
+.intro-points-labels b {
+    margin-right: 2px;
+    font-size: 1rem;
+    color: var(--pl-ink);
+}
+.intro-points-track {
+    height: 6px;
+    margin-top: 5px;
+    border-radius: 3px;
+    background: var(--pl-border);
+}
+.intro-points-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--pl-olive-light);
+}
+
+/* Dots show where you are; tapping one jumps there */
+.intro-dots {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    margin: 8px 0 10px;
+}
+.intro-dot {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+.intro-dot::before {
+    content: "";
+    display: block;
+    width: 7px;
+    height: 7px;
+    margin: auto;
+    border-radius: 50%;
+    background: var(--pl-border);
+}
+.intro-dot.is-current::before {
+    background: var(--pl-ink);
+}
+
+.intro-next {
+    display: block;
+    width: calc(100% - 40px);
+    margin: 0 20px;
+    padding: 12px 0;
+    border: none;
+    border-radius: 12px;
+    background: #6d8a2a;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.intro-next:hover:not(:disabled) {
+    background: var(--pl-olive);
+}
+.intro-next:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.intro-next:focus-visible,
+.intro-dot:focus-visible,
+.intro-skip:focus-visible,
+.intro-close:focus-visible {
+    outline: 2px solid var(--pl-olive);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .intro-track {
+        transition: none;
+    }
+}

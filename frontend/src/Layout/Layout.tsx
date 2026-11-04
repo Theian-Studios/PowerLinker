@@ -4,6 +4,7 @@ import { CONTEXT, ContextState, STREAK_GOAL, STREAK_POINTS } from "../Models/Con
 import { haptic } from "../Services/haptics";
 import useStreakGlow from "../Hooks/useStreakGlow";
 import useOtherTab from "../Hooks/useOtherTab";
+import HelpButton from "../Components/HelpButton/HelpButton";
 import ProfileButton from "../Components/ProfileButton/ProfileButton";
 import "./Layout.css";
 
@@ -38,6 +39,7 @@ export function Layout() {
         <div className="layout-container">
             {/* Header */}
             <header className="site-header">
+                <HelpButton />
                 <ProfileButton />
                 {/* Phones: title centered. Desktop: logo and title on the left. */}
                 <div className="header-content">

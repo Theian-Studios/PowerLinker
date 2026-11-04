@@ -86,7 +86,7 @@
 .compare-reason--tree { grid-column: 3 / 4; }
 .compare-reason--close { color: var(--pl-close); }
 .compare-reason--bad { color: var(--pl-bad); }
-/* Matches with a note ("One place is more specific") stay quiet, and so do unmarked rows ("Moved, or a different person") */
+/* Matches with a note ("One place is more specific") stay quiet, and so do unmarked rows ("Moved or a different person") */
 .compare-reason--ok,
 .compare-reason--none { font-weight: 500; }
 

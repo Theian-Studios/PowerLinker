@@ -390,7 +390,7 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
           record: withYear(recordDate, recordPlace),
           tree: withYear(treeDate, treePlace),
           status: "none",
-          reason: "Moved, or a different person",
+          reason: "Moved or a different person",
           showReason: true,
         });
       }
