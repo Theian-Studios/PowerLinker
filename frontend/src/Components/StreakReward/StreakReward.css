@@ -1,0 +1,142 @@
+/* The celebration at 25 in a row: the app's own background over the hint, under the header */
+.reward-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 24px max(20px, env(safe-area-inset-bottom));
+    background: var(--pl-bg);
+    overflow-y: auto;
+    animation: streak-fade 0.2s ease-out;
+}
+.reward-screen-body {
+    flex: 1;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0 8px;
+    text-align: center;
+}
+.reward-points {
+    padding: 8px 22px;
+    border-radius: 999px;
+    background: #eef3e0;
+    color: var(--pl-olive-dark);
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+.reward-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 16px;
+}
+.reward-number {
+    font-size: 4.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: #3d4a1c;
+}
+.reward-line {
+    margin-top: 6px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #3d4a1c;
+}
+
+/* The names, in a soft card that scrolls on its own when they don't all fit */
+.reward-card {
+    position: relative;
+    width: 100%;
+    margin-top: 22px;
+    padding: 12px 10px 4px;
+    border-radius: 16px;
+    background: var(--pl-surface-alt);
+}
+.reward-card-label {
+    margin-bottom: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pl-muted);
+}
+.reward-list {
+    display: grid;
+    gap: 0 14px;
+    max-height: 11.6em;
+    margin: 0;
+    padding: 0 4px 8px;
+    list-style: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    font-size: 1.05rem;
+    color: var(--pl-ink);
+}
+.reward-list--2 { grid-template-columns: 1fr 1fr; }
+.reward-list li {
+    padding: 0.3em 0;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Fades the last visible row while there are more names below */
+.reward-card::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 44px;
+    border-radius: 0 0 16px 16px;
+    background: linear-gradient(rgba(244, 243, 238, 0), var(--pl-surface-alt));
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+}
+.reward-card--more::after {
+    opacity: 1;
+}
+
+/* Under the names, just above the button */
+.reward-streak {
+    flex: none;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--pl-muted);
+}
+.reward-screen .reward-screen-button {
+    flex: none;
+    max-width: 400px;
+    margin-top: 8px;
+    padding: 14px 0;
+    font-size: 1rem;
+}
+
+/* Computers: a wider card, with four columns once there are 8 names, so even 25 fit without scrolling */
+@media (min-width: 900px) {
+    .reward-screen-body {
+        max-width: 720px;
+    }
+    .reward-card {
+        padding: 14px 18px 8px;
+    }
+    .reward-list {
+        max-height: none;
+        overflow: visible;
+    }
+    .reward-list--wide {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    .reward-screen .reward-screen-button {
+        max-width: 400px;
+    }
+}

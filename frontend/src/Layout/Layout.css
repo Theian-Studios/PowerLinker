@@ -174,13 +174,7 @@ html, body {
     color: var(--pl-ink);
 }
 
-/* Celebration card at 25 in a row; shares the centered popup with the reset message */
-.streak-reward .reward-burst {
-    font-size: 2.6rem;
-    line-height: 1;
-    margin-bottom: 8px;
-    animation: reward-pop 0.4s ease-out;
-}
+/* Shared by the other-tab popup and the check-hint review */
 .reward-title {
     margin-bottom: 4px;
     font-size: 1.4rem;
@@ -203,12 +197,6 @@ html, body {
 .reward-continue:hover {
     background: var(--pl-olive);
 }
-@keyframes reward-pop {
-    0% { transform: scale(0.4); opacity: 0; }
-    70% { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(1); }
-}
-
 /* Streak-reset popup, centered over the page */
 .streak-lost-overlay {
     position: fixed;
@@ -302,6 +290,7 @@ html, body {
 }
 
 .main-content {
+    position: relative;
     flex: 1;
     min-height: 0;
     width: 100%;

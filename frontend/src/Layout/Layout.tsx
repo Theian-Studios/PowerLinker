@@ -1,4 +1,5 @@
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useMemo } from "react";
+import StreakReward from "../Components/StreakReward/StreakReward";
 import { Outlet, useLocation } from "react-router-dom";
 import { CONTEXT, ContextState, STREAK_GOAL, STREAK_POINTS } from "../Models/Context";
 import { haptic } from "../Services/haptics";
@@ -6,6 +7,7 @@ import useStreakGlow from "../Hooks/useStreakGlow";
 import useOtherTab from "../Hooks/useOtherTab";
 import HelpButton from "../Components/HelpButton/HelpButton";
 import ProfileButton from "../Components/ProfileButton/ProfileButton";
+import { streakNames } from "./rewardNames";
 import "./Layout.css";
 
 /* Layout Component - implements all features that remain from page to page; header, navbar, footer */
@@ -23,6 +25,14 @@ export function Layout() {
     const { glow, rollFrom } = useStreakGlow();
     const left = STREAK_GOAL - context.streak;
     const otherTab = useOtherTab();
+
+    // The people this streak helped back to their families, listed on the celebration
+    const rewardNames = useMemo(
+        () => (context.justRewarded ? streakNames(context.reviewedHints) : []),
+        // Only when the celebration opens, so answering behind it can't change the names
+        // eslint-disable-next-line reactHooks/exhaustive-deps
+        [context.justRewarded]
+    );
 
     // The celebration stays until "Keep going"; the reset message closes itself after a few seconds
     useEffect(() => {
@@ -76,20 +86,6 @@ export function Layout() {
                     </div>
                 )}
             </header>
-            {/* Celebration at 25 in a row, in the middle of the screen */}
-            {context.justRewarded && (
-                <div className="streak-lost-overlay" role="alertdialog" aria-labelledby="reward-title">
-                    <div className="streak-lost streak-reward">
-                        <div className="reward-burst" aria-hidden="true">🎉</div>
-                        <div className="reward-title" id="reward-title">+{STREAK_POINTS} points!</div>
-                        <p>{STREAK_GOAL} in a row. Thank you for the careful work.</p>
-                        <button type="button" className="reward-continue" autoFocus
-                            onClick={() => setContext((prev) => ({ ...prev, justRewarded: false }))}>
-                            Keep going
-                        </button>
-                    </div>
-                </div>
-            )}
             {/* A popup in the middle of the screen; tap anywhere to close it early */}
             {context.streakLost && (
                 <div className="streak-lost-overlay" role="alertdialog" aria-labelledby="streak-lost-title"
@@ -118,6 +114,10 @@ export function Layout() {
             {/* Main Content */}
             <main className="main-content">
                 <Outlet />
+                {/* Celebration at 25 in a row, over the page but under the header, so the new points show there */}
+                {context.justRewarded && (
+                    <StreakReward names={rewardNames} onClose={() => setContext((prev) => ({ ...prev, justRewarded: false }))} />
+                )}
             </main>
         </div>
     );

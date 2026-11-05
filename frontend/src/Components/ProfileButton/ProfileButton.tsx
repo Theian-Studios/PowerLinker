@@ -50,11 +50,12 @@ export default function ProfileButton() {
   };
 
   /**
-   * Saves the name.
+   * Saves the name. An empty name isn't saved; the Enter button is off until they type one.
    * @param event - The form submission.
    */
   const save = (event: FormEvent) => {
     event.preventDefault();
+    if (!name.trim()) return;
     saveVolunteerName(name);
     setName(volunteerName());
     setSaved(true);
@@ -110,7 +111,7 @@ export default function ProfileButton() {
                 autoComplete="name"
                 spellCheck={false}
               />
-              <button type="submit" className="profile-save">
+              <button type="submit" className="profile-save" disabled={!name.trim()}>
                 Enter
               </button>
             </div>

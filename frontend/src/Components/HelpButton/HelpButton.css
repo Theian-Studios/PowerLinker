@@ -43,3 +43,14 @@
         left: 20px;
     }
 }
+
+/* Wide screens: the logo takes the left corner, so the button moves to the right, just before the profile button,
+   in the middle of the one-row header */
+@media screen and (min-width: 1100px) {
+    .help-button {
+        top: 50%;
+        left: auto;
+        right: 60px;
+        transform: translateY(-50%);
+    }
+}

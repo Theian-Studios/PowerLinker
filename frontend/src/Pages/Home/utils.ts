@@ -198,7 +198,7 @@ export function useHomeHandlers({
             });
         }
 
-        const completed = { ...hint, complete: true, graded: hint.graded || Boolean(hint.dummy), answered: true };
+        const completed = { ...hint, complete: true, graded: hint.graded || Boolean(hint.dummy), answered: true, vote };
         // A returning volunteer picks up after the furthest hint they've answered
         if (!hint.dummy) {
             saveCursor(hint.insertTime);

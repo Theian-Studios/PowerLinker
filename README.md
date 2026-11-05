@@ -41,7 +41,8 @@ the hints go round together. Run `logNextHint` in the Apps Script editor to see 
   the right answer and the facts that show it.
 - **Points**: 25 answers in a row earn 100 points. Missing a check hint, or answering "Same person" when two or
   more of the main person's facts conflict and their families don't match, starts the count over. **Not sure**
-  never does.
+  never does. At 25, a screen under the header shows how many people they helped back to their families and
+  their names: the main person of each "Same person" answer in that streak, leaving out check hints.
 - **Bad connections**: answers wait on the phone until the Sheet confirms them, through offline spells and busy
   moments, and the next hints are saved for the next visit.
 

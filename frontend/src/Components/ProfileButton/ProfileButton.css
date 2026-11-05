@@ -171,6 +171,14 @@
     opacity: 0.5;
     cursor: default;
 }
+/* The app's olive ring when reached by keyboard, instead of the browser's own; none after a click */
+.profile-save:focus {
+    outline: none;
+}
+.profile-save:focus-visible {
+    outline: 2px solid var(--pl-olive);
+    outline-offset: 2px;
+}
 
 .profile-message {
     margin: 10px 0 0;
@@ -181,3 +189,10 @@
 .profile-message--rejected,
 .profile-message--error { color: var(--pl-bad); }
 
+/* Wide screens: the header is one row, so the button sits in the middle of it, like the ? button */
+@media screen and (min-width: 1100px) {
+    .profile-button {
+        top: 50%;
+        transform: translateY(-50%);
+    }
+}
