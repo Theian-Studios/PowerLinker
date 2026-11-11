@@ -40,6 +40,10 @@ jobs:
       - run: npx vite build --base=/${{ github.event.repository.name }}/
         env:
           VITE_SHEETS_URL: ${{ vars.SHEETS_URL }}
+      # The Chilean site, in Spanish with the Sheet's Chile hints, at /chile/ beside the English one
+      - run: npx vite build --mode chile --base=/${{ github.event.repository.name }}/chile/ --outDir dist/chile --emptyOutDir false
+        env:
+          VITE_SHEETS_URL: ${{ vars.SHEETS_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist

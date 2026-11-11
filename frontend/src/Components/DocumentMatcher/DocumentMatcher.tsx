@@ -17,6 +17,8 @@ import { haptic } from "../../Services/haptics.ts";
 import { animate, prefersReducedMotion } from "../../Services/motion.ts";
 import { UnsureReason } from "../../Hooks/useQueue.ts";
 import CheckReview, { CheckReviewData, reviewFacts } from "../CheckReview/CheckReview";
+import { CHILE, inSiteLanguage, tr } from "../../Services/region";
+import { say } from "../../Services/spanish.ts";
 
 /** Tree relationships a record relationship can match, since records are often less specific ("parent"). */
 const RELATIVE_KINDS: Partial<Record<Relationship, Relationship[]>> = {
@@ -116,14 +118,17 @@ const NEXT_HINT_PAUSE_MS = 350;
 /** Conflicting facts at which "Same person" counts as a wrong answer: one can be a typo, several rarely are. */
 const STRONG_CONFLICTS = 2;
 
+/** Headings of a person's parents in the family list. */
+const PARENT_HEADINGS: string[] = [Relationship.Father, Relationship.Mother, Relationship.Parent];
+
 /**
  * Joins names into a sentence: "spouse Anna and son Anthony", or the first two and how many more.
  * @param names - The names, lowercase relationship first.
  * @returns The joined names.
  */
 function listNames(names: string[]): string {
-  const shown = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} others`] : names;
-  return shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}` : shown[0] ?? "";
+  const shown = names.length > 3 ? [...names.slice(0, 2), tr(`${names.length - 2} others`, `${names.length - 2} más`)] : names;
+  return shown.length > 1 ? `${shown.slice(0, -1).join(", ")} ${tr("and", "y")} ${shown[shown.length - 1]}` : shown[0] ?? "";
 }
 
 /**
@@ -142,6 +147,36 @@ function treePageUrl(pid?: string): string | undefined {
  */
 function shortName(person: IPerson): string {
   return [(person.firstName ?? "").trim().split(/\s+/)[0], (person.lastName ?? "").trim()].filter(Boolean).join(" ");
+}
+
+/**
+ * Names the vital facts a hint leaves out, in Spanish with their articles, for the Chilean site's note.
+ * @param facts - The facts in English, "birth date" and "birthplace".
+ * @returns For example "la fecha de nacimiento ni el lugar de nacimiento".
+ */
+function spanishFacts(facts: readonly string[]): string {
+  return facts.length > 1 ? "la fecha ni el lugar de nacimiento" : facts[0] === "birth date" ? "la fecha de nacimiento" : "el lugar de nacimiento";
+}
+
+/** Relationships that have a man's and a woman's word, which read better in Spanish than "cónyuge" or "hijo o hija". */
+const GENDERED_KIN: Partial<Record<Relationship, [string, string]>> = {
+  [Relationship.Spouse]: ["Husband", "Wife"],
+  [Relationship.Child]: ["Son", "Daughter"],
+  [Relationship.Sibling]: ["Brother", "Sister"],
+  [Relationship.Parent]: ["Father", "Mother"],
+};
+
+/**
+ * Names a relative's relationship. On the Chilean site it says husband or wife, son or daughter, when the person's
+ * sex is known; the English site keeps the relationship as the data gives it.
+ * @param person - The relative.
+ * @returns The relationship to show.
+ */
+function kinWord(person: Person): string {
+  const words = CHILE ? GENDERED_KIN[person.relationship as Relationship] : undefined;
+  if (words && person.sex === "male") return words[0];
+  if (words && person.sex === "female") return words[1];
+  return person.relationship;
 }
 
 /**
@@ -214,7 +249,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     // "Same person" on a hint with several conflicting facts is treated as a wrong answer for the streak. Not when
     // the family matches, which outweighs a few conflicting facts, or when one side's own facts can't all be true:
     // the page tells them not to count that against a match, so it doesn't cost them their streak.
-    submit(value, value === 1 && conflictCount >= STRONG_CONFLICTS && !familyAgrees && ownConflicts.length === 0, unsure);
+    submit(value, value === 1 && conflictCount + parentConflicts.length >= STRONG_CONFLICTS && !familyAgrees && ownConflicts.length === 0, unsure);
   }
 
   /**
@@ -318,6 +353,15 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
         const byName = candidates.find((treePerson) => birthYearsAgree(recordPerson, treePerson)) ?? candidates[0];
         if (byName) matchingTreePeople = [byName];
       }
+      // A person has one father and one mother: when each side lists just one, they're shown side by side even with
+      // different names, so a record's father Henry against the tree's father Hollis shows as a difference
+      if (matchingTreePeople.length === 0 && [Relationship.Father, Relationship.Mother].includes(recordPerson.relationship)) {
+        const treeParents = sortedTreePeople.filter((p) => p.relationship === recordPerson.relationship);
+        const recordParents = (sortedRecordPeople ?? []).filter((p) => p.relationship === recordPerson.relationship);
+        if (recordParents.length === 1 && treeParents.length === 1 && !used.has(treeParents[0])) {
+          matchingTreePeople = treeParents;
+        }
+      }
       matchingTreePeople.forEach((person) => used.add(person));
 
       return {
@@ -403,9 +447,9 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   // Shown above the vote buttons
   const nudge = showNudge && !loading ? (
     <div className="slow-down-nudge" role="alert">
-      <span>Slow down a little. Check the dates and places before deciding.</span>
+      <span>{tr("Slow down a little. Check the dates and places before deciding.", "Tómate tu tiempo. Revisa las fechas y los lugares antes de decidir.")}</span>
       <button type="button" className="dismiss-nudge" onClick={dismissNudge} autoFocus>
-        Got it
+        {tr("Got it", "Entendido")}
       </button>
     </div>
   ) : null;
@@ -431,7 +475,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
         return {
           name: (treePerson.firstName ?? "").trim().split(/\s+/)[0],
           fullName: shortName(treePerson),
-          heading: treePerson.relationship,
+          heading: kinWord(treePerson),
           rows: [...buildRows(match.recordPerson, treePerson, false), ...familyTimelineRows(treePerson, matches[0]?.recordPerson, true)],
           notOnTree: false,
           onlyOnTree: true,
@@ -443,7 +487,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
         // The main person is shown by first name only (no middle names); family members keep their relationship
         heading: match.recordPerson.relationship === Relationship.FocusPerson
           ? (match.recordPerson.firstName ?? "").trim().split(/\s+/)[0] || "Main person"
-          : match.recordPerson.relationship,
+          : kinWord(match.recordPerson),
         rows: i === 0
           ? buildRows(match.recordPerson, treePerson, matches.length === 1, spouseSurnames)
           : [...buildRows(match.recordPerson, treePerson, false), ...familyTimelineRows(match.recordPerson, treeFocus)],
@@ -487,10 +531,17 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       if (person.rows.some((row) => row.status === "bad")) return [];
       // The same person on the tree attached to both, not just someone with the same name
       const linked = Boolean(match.recordPerson.matchpid) && match.recordPerson.matchpid === treePerson.pid;
-      return [{ who: `${person.heading.toLowerCase()} ${person.name}`.trim(), linked }];
+      const parent = PARENT_HEADINGS.includes(person.heading);
+      return [{ who: `${say(person.heading.toLowerCase())} ${person.name}`.trim(), linked, parent }];
     });
   }, [isDuplicate, matches, people]);
-  const familyAgrees = familyAgreement.length >= 2 || familyAgreement.some((relative) => relative.linked);
+  // In Chile most places say only "Chile", so parents tell people apart best: one matching parent is enough
+  const familyAgrees = familyAgreement.length >= 2 || familyAgreement.some((relative) => relative.linked || (CHILE && relative.parent));
+  // Parents both sides name, with names that don't match. On the Chilean site they're shown above the table and
+  // count as conflicts, since there the family decides more than dates and places.
+  const parentConflicts = useMemo(() => (CHILE && isDuplicate ? people.slice(1) : []).filter((person) =>
+    PARENT_HEADINGS.includes(person.heading) && !person.notOnTree && !person.onlyOnTree && person.rows[0]?.status === "bad"),
+  [isDuplicate, people]);
   const mainDiffers = (people[0]?.rows ?? []).some((row) => row.status === "bad" || row.status === "close");
   // Two copies of one person on the tree often differ only because one has someone else's death attached.
   // When the deaths are the only conflict and the same family says it's one person, say so. A matching birth
@@ -555,18 +606,29 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     };
   }, [people, noHint]);
 
-  // Also shown on the empty and error screens, so switching hint type can always be undone. The public
-  // site has only one type, so there's nothing to switch.
-  const hintTypeSelect = usingSheets ? null : (
-    <select
-      className="hint-type-select"
-      value={hintType}
-      onChange={(e) => setHintType(e.target.value)}
-      aria-label="Hint type"
-    >
-      <option value="record_attachment">Record attachment</option>
-      <option value="possible_duplicate">Possible duplicate</option>
-    </select>
+  // Above the question, and on the empty and error screens too, so switching kinds can always be undone. Two words
+  // like tabs, the chosen one underlined: two people on the tree (duplicates), or a record beside a tree person
+  // (records). What each means shows on hover and to screen readers.
+  const hintTypeSelect = CHILE ? null : (
+    <div className="hint-kind" role="radiogroup" aria-label={tr("Kind of hint", "Tipo de sugerencia")}>
+      {([
+        ["possible_duplicate", usingSheets ? tr("Duplicates", "Duplicados") : tr("Possible duplicates", "Posibles duplicados"), tr("Two people on the tree", "Dos personas del árbol")],
+        ["record_attachment", usingSheets ? tr("Records", "Registros") : tr("Record attachments", "Registros para adjuntar"), tr("Record and tree person", "Registro y persona del árbol")],
+      ] as const).map(([value, label, detail]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={hintType === value}
+          className={`hint-kind-option${hintType === value ? " is-chosen" : ""}`}
+          title={detail}
+          aria-description={detail}
+          onClick={() => { if (hintType !== value) setHintType(value); }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   );
 
   return (
@@ -577,36 +639,36 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
           {connectionNote && <p className="connection-note" role="status">{connectionNote}</p>}
           {noHint ? (
             <>
-            <div className="hint-meta">{hintTypeSelect}</div>
+            {hintTypeSelect}
             <div className="hint-status" role="status">
               {loadError && offline ? (
                 <>
-                  <h3>You’re offline</h3>
-                  <p>Hints will load as soon as you’re back online.</p>
+                  <h3>{tr("You’re offline", "Estás sin conexión")}</h3>
+                  <p>{tr("Hints will load as soon as you’re back online.", "Las sugerencias se cargarán apenas vuelvas a tener conexión.")}</p>
                 </>
               ) : loadError ? (
                 <>
-                  <h3>Couldn’t load hints</h3>
-                  <p>Trying again every so often. Check your connection, or try now.</p>
+                  <h3>{tr("Couldn’t load hints", "No se pudieron cargar las sugerencias")}</h3>
+                  <p>{tr("Trying again every so often. Check your connection, or try now.", "Lo seguiremos intentando cada cierto tiempo. Revisa tu conexión o inténtalo ahora.")}</p>
                   <button type="button" className="hint-status-action" onClick={onRetry}>
-                    Try again
+                    {tr("Try again", "Reintentar")}
                   </button>
                 </>
               ) : (
                 <>
-                  <h3>You’re all caught up</h3>
+                  <h3>{tr("You’re all caught up", "Estás al día")}</h3>
                   <p>
                     {hintType === "record_attachment" || usingSheets
-                      ? "You’ve reviewed every hint available right now. Thank you for helping!"
-                      : "There are no hints of this type right now."}
+                      ? tr("You’ve reviewed every hint available right now. Thank you for helping!", "Revisaste todas las sugerencias disponibles por ahora. ¡Gracias por ayudar!")
+                      : tr("There are no hints of this type right now.", "Por ahora no hay sugerencias de este tipo.")}
                   </p>
                   {hintType === "record_attachment" || usingSheets ? (
                     <button type="button" className="hint-status-action" onClick={onRetry}>
-                      Check for more hints
+                      {tr("Check for more hints", "Buscar más sugerencias")}
                     </button>
                   ) : (
                     <button type="button" className="hint-status-action" onClick={() => setHintType("record_attachment")}>
-                      Back to record attachments
+                      {tr("Back to record attachments", "Volver a los registros")}
                     </button>
                   )}
                 </>
@@ -615,10 +677,10 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
             </>
           ) : waiting ? (
             <div className="matcher-layout">
-              <div className="matcher-main hint-skeleton" role="status" aria-label="Loading hints">
+              <div className="matcher-main hint-skeleton" role="status" aria-label={tr("Loading hints", "Cargando sugerencias")}>
                 <div className="skeleton skeleton--title" />
                 <div className="skeleton skeleton--title skeleton--short" />
-                <p className="skeleton-caption">Loading hints…</p>
+                <p className="skeleton-caption">{tr("Loading hints…", "Cargando sugerencias…")}</p>
                 <div className="skeleton skeleton--note" />
                 <div className="skeleton skeleton--table" />
               </div>
@@ -627,19 +689,23 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
           ) : (
             <div className="matcher-layout">
             <div className="matcher-main">
+              {hintTypeSelect}
               {/* Names the tree person this record would be attached to, like FamilySearch's review screen */}
               <h2 className="question">
-                {isDuplicate && firstName && matchName
-                  ? <>Are <span className="question-name">{firstName}</span> and <span className="question-name">{matchName}</span> the same person?</>
-                  : matchName ? <>Is this record a match for <span className="question-name">{matchName}</span>?</> : "Is this the same person?"}
+                {CHILE
+                  ? isDuplicate && firstName && matchName
+                    ? <>¿<span className="question-name">{firstName}</span> {/^h?[ií](?![aeiouáéíóú])/i.test(matchName) ? "e" : "y"} <span className="question-name">{matchName}</span> son la misma persona?</>
+                    : matchName ? <>¿Este registro corresponde a <span className="question-name">{matchName}</span>?</> : "¿Es la misma persona?"
+                  : isDuplicate && firstName && matchName
+                    ? <>Are <span className="question-name">{firstName}</span> and <span className="question-name">{matchName}</span> the same person?</>
+                    : matchName ? <>Is this record a match for <span className="question-name">{matchName}</span>?</> : "Is this the same person?"}
               </h2>
               <div className="hint-meta">
-                {hintTypeSelect}
                 {sources.length > 0 && (
                   <span className="source-links">
                     {sources.map(({ label, url }) => (
-                      <a key={label} className="check-source" href={url} target="_blank" rel="noopener noreferrer" onClick={() => setSourceOpened(true)}>
-                        {label} ↗
+                      <a key={label} className="check-source" href={inSiteLanguage(url)} target="_blank" rel="noopener noreferrer" onClick={() => setSourceOpened(true)}>
+                        {say(label)} ↗
                       </a>
                     ))}
                   </span>
@@ -649,11 +715,15 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                 <p className="source-tip" role="note" key={who ?? "record"}>
                   <span className="source-tip-icon" aria-hidden="true">i</span>
                   <span>
-                    {who
-                      ? <>No {facts.join(" or ")} for {who} here. Their tree page may have {facts.length > 1 ? "them" : "it"}.{" "}</>
-                      : <>No {facts.join(" or ")} shown here. The original record may have {facts.length > 1 ? "them" : "it"}.{" "}</>}
-                    <a className="source-tip-link" href={url} target="_blank" rel="noopener noreferrer" onClick={() => setSourceOpened(true)}>
-                      {who ? "Open page ↗" : "Check source ↗"}
+                    {CHILE
+                      ? who
+                        ? <>Aquí no {facts.length > 1 ? "aparecen" : "aparece"} {spanishFacts(facts)} de {say(who)}. {facts.length > 1 ? "Pueden" : "Puede"} estar en su página del árbol.{" "}</>
+                        : <>Aquí no {facts.length > 1 ? "aparecen" : "aparece"} {spanishFacts(facts)}. {facts.length > 1 ? "Pueden" : "Puede"} estar en el registro original.{" "}</>
+                      : who
+                        ? <>No {facts.join(" or ")} for {who} here. Their tree page may have {facts.length > 1 ? "them" : "it"}.{" "}</>
+                        : <>No {facts.join(" or ")} shown here. The original record may have {facts.length > 1 ? "them" : "it"}.{" "}</>}
+                    <a className="source-tip-link" href={inSiteLanguage(url)} target="_blank" rel="noopener noreferrer" onClick={() => setSourceOpened(true)}>
+                      {who ? tr("Open page ↗", "Abrir página ↗") : tr("Check source ↗", "Ver fuente ↗")}
                     </a>
                   </span>
                 </p>
@@ -661,23 +731,36 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
               {onlyDeathsDiffer && ownConflicts.length === 0 && (
                 <p className="source-tip self-conflict" role="note">
                   <span className="source-tip-icon self-conflict-icon" aria-hidden="true">!</span>
-                  <span><b>Only the deaths disagree.</b> Everything else points to one person, so one of them probably has someone else’s death attached.</span>
+                  {CHILE
+                    ? <span><b>Solo las defunciones no coinciden.</b> Todo lo demás indica que es una sola persona, así que probablemente una de las dos tiene adjunta la defunción de otra persona.</span>
+                    : <span><b>Only the deaths disagree.</b> Everything else points to one person, so one of them probably has someone else’s death attached.</span>}
                 </p>
               )}
               {ownConflicts.map(({ who, problem }) => (
                 <p className="source-tip self-conflict" role="note" key={who + problem}>
                   <span className="source-tip-icon self-conflict-icon" aria-hidden="true">!</span>
-                  <span><b>{who === "The record" ? "The record’s" : `${who}’s`} own facts disagree:</b> {problem}. One of those is probably wrong, so don’t count it against a match.</span>
+                  {CHILE
+                    ? <span><b>Los datos {who === "The record" ? "del registro" : who === "The tree person" ? "de la persona del árbol" : `de ${say(who)}`} se contradicen entre sí:</b> {say(problem)}. Probablemente uno de ellos está mal, así que no lo cuentes en contra de que sean la misma persona.</span>
+                    : <span><b>{who === "The record" ? "The record’s" : `${who}’s`} own facts disagree:</b> {problem}. One of those is probably wrong, so don’t count it against a match.</span>}
                 </p>
               ))}
+              {parentConflicts.length > 0 && (
+                <p className="source-tip self-conflict" role="note">
+                  <span className="source-tip-icon self-conflict-icon" aria-hidden="true">!</span>
+                  <span>
+                    <b>Padres distintos:</b> {parentConflicts.map((person) => `${say(person.heading.toLowerCase())} ${person.rows[0].record ?? ""} · ${person.rows[0].tree ?? ""}`).join("; ")}.
+                    {" "}Los nombres de los padres pesan más que una fecha o un lugar.
+                  </span>
+                </p>
+              )}
               {/* Matching family sits below the main table, so it's called out up here; the other clues show in the table */}
               {familyAgrees && (
                 <div className="source-tip clue-note" role="note">
                   <span className="source-tip-icon clue-note-icon" aria-hidden="true">✓</span>
                   <div>
-                    <b>Same family:</b> {listNames(familyAgreement.map((relative) => relative.who))}
+                    <b>{tr("Same family:", "Misma familia:")}</b> {listNames(familyAgreement.map((relative) => relative.who))}
                     {mainDiffers && !onlyDeathsDiffer && (
-                      <p className="clue-weight">Stronger evidence than a date or place that’s off.</p>
+                      <p className="clue-weight">{tr("Stronger evidence than a date or place that’s off.", "Esto pesa más que una fecha o un lugar que no coincida.")}</p>
                     )}
                   </div>
                 </div>
@@ -703,31 +786,34 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
           className="conflicts-below"
           onClick={() => conflictsBelow[0].scrollIntoView({ behavior: "smooth", block: "center" })}
         >
-          ↓ {conflictsBelow.length} more {conflictsBelow.length === 1 ? "conflict" : "conflicts"} below
+          {tr(
+            `↓ ${conflictsBelow.length} more ${conflictsBelow.length === 1 ? "conflict" : "conflicts"} below`,
+            `↓ ${conflictsBelow.length} ${conflictsBelow.length === 1 ? "conflicto más" : "conflictos más"} abajo`,
+          )}
         </button>
       )}
       </div>
 
-      <div className="vote-bar" role="toolbar" aria-label="Your answer">
+      <div className="vote-bar" role="toolbar" aria-label={tr("Your answer", "Tu respuesta")}>
         <div className="vote-inner">
           {nudge}
           {askReason ? (
             <div className="confirm-same unsure-prompt" role="alertdialog" aria-labelledby="unsure-text">
-              <p id="unsure-text"><span className="ask-source-lead">Not sure?</span> What made it hard to tell?</p>
+              <p id="unsure-text"><span className="ask-source-lead">{tr("Not sure?", "¿Tienes dudas?")}</span> {tr("What made it hard to tell?", "¿Qué te hizo dudar?")}</p>
               <div className="unsure-reasons">
                 <button type="button" className="vote-btn unsure-reason" onClick={() => voteUnsure("not_enough_info")} autoFocus>
-                  Not enough info
+                  {tr("Not enough info", "Falta información")}
                 </button>
                 <button type="button" className="vote-btn unsure-reason" onClick={() => voteUnsure("facts_disagree")}>
-                  Facts disagree
+                  {tr("Facts disagree", "Los datos no coinciden")}
                 </button>
                 <button type="button" className="vote-btn unsure-reason" onClick={() => voteUnsure("other")}>
-                  Other
+                  {tr("Other", "Otro motivo")}
                 </button>
               </div>
               <div className="unsure-footer">
                 <button type="button" className="vote-link" onClick={() => setAskReason(false)}>
-                  ‹ Back to answers
+                  {tr("‹ Back to answers", "‹ Volver a las respuestas")}
                 </button>
                 {/* The original record may settle it, unless they've already looked */}
                 {sources.length > 0 && !sourceOpened && (
@@ -736,7 +822,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                       <a
                         key={label}
                         className="vote-link unsure-source"
-                        href={url}
+                        href={inSiteLanguage(url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => {
@@ -744,7 +830,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                           setAskReason(false);
                         }}
                       >
-                        {label} ↗
+                        {say(label)} ↗
                       </a>
                     ))}
                   </span>
@@ -755,20 +841,20 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
             /* Phones: answers on top, Back and Not sure underneath. Desktop: all on one row. */
             <div className="vote-row">
               <button type="button" className="vote-link vote-link--back" onClick={goBack} disabled={previousBlocked}>
-                ‹ Back
+                {tr("‹ Back", "‹ Atrás")}
               </button>
               <div className="vote-answers">
                 <button type="button" className="vote-btn vote-btn--no" onClick={(event) => { pressFeedback(event); vote(-1); }} disabled={votingBlocked}>
                   <span className="vote-ripples" aria-hidden="true" />
-                  <svg className="vote-mark" viewBox="0 0 16 16" aria-hidden="true"><path pathLength={20} d="M4 4l8 8M12 4l-8 8" /></svg> Different
+                  <svg className="vote-mark" viewBox="0 0 16 16" aria-hidden="true"><path pathLength={20} d="M4 4l8 8M12 4l-8 8" /></svg> {tr("Different", "Otra persona")}
                 </button>
                 <button type="button" className="vote-btn vote-btn--yes" onClick={(event) => { pressFeedback(event); vote(1); }} disabled={votingBlocked}>
                   <span className="vote-ripples" aria-hidden="true" />
-                  <svg className="vote-mark" viewBox="0 0 16 16" aria-hidden="true"><path pathLength={20} d="M2.5 8.5l3.5 3.5 7.5-8" /></svg> Same person
+                  <svg className="vote-mark" viewBox="0 0 16 16" aria-hidden="true"><path pathLength={20} d="M2.5 8.5l3.5 3.5 7.5-8" /></svg> {tr("Same person", "Misma persona")}
                 </button>
               </div>
               <button type="button" className="vote-link vote-link--unsure" onClick={() => { haptic("tap"); setAskReason(true); }} disabled={votingBlocked}>
-                Not sure
+                {tr("Not sure", "No sé")}
               </button>
             </div>
           )}
@@ -776,7 +862,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       </div>
       {checkReview && <CheckReview review={checkReview} sides={checkReview.sides} onClose={() => setCheckReview(null)} />}
       {/* The shapes show while the first hints load; this is for a reload with a hint already on screen */}
-      {loading && !waiting && <Loading className="fixed" message="Loading hints…" />}
+      {loading && !waiting && <Loading className="fixed" message={tr("Loading hints…", "Cargando sugerencias…")} />}
     </form>
   );
 }

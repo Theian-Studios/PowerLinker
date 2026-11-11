@@ -264,6 +264,67 @@ function hasSurname(names: string[], surname?: string): boolean {
   return Boolean(wanted) && names.some((name) => name.trim().toLowerCase() === wanted);
 }
 
+/** Milliseconds in a day. */
+const DAY_MS = 86_400_000;
+
+/**
+ * Compares a birth on one side with a christening on the other, when that's all the two sides offer: a
+ * christening weeks or months after the birth fits; years later is worth a look; before the birth can't be.
+ * @param recordPerson - The person on one side.
+ * @param treePerson - The person on the other side, if any.
+ * @returns A row with the birth on its side and the christening on the other, or undefined when there's nothing to compare.
+ */
+function birthAndChristening(recordPerson: Person, treePerson: Person | undefined): CompareRow | undefined {
+  if (!treePerson) return undefined;
+  /**
+   * Finds a person's first dated event of a type.
+   * @param person - Whose events to look through.
+   * @param type - Which kind of event: "birth" or "christening".
+   * @returns The event, if one has a date.
+   */
+  const dated = (person: Person, type: string) => person.personEvents.find((event) => event.sanitizedType === type && event.dateText);
+  const [recordBirth, treeBirth] = [dated(recordPerson, "birth"), dated(treePerson, "birth")];
+  const [recordChristening, treeChristening] = [dated(recordPerson, "christening"), dated(treePerson, "christening")];
+  let birth: Event | undefined;
+  let christening: Event | undefined;
+  let birthOnRecord = true;
+  if (recordBirth && !treeBirth && treeChristening && !recordChristening) [birth, christening] = [recordBirth, treeChristening];
+  else if (treeBirth && !recordBirth && recordChristening && !treeChristening) [birth, christening, birthOnRecord] = [treeBirth, recordChristening, false];
+  if (!birth || !christening) return undefined;
+
+  const born = birth.yearRange(false);
+  const christened = christening.yearRange(false);
+  if (!born || !christened) return undefined;
+  const exact = !birth.isApproximate && !christening.isApproximate && /^\d{1,2} /.test(birth.dateText ?? "") && /^\d{1,2} /.test(christening.dateText ?? "");
+  let status: Status;
+  let reason: string;
+  if (exact) {
+    const days = Math.round((Date.parse(christening.dateText!) - Date.parse(birth.dateText!)) / DAY_MS);
+    if (!Number.isFinite(days)) return undefined;
+    if (days < 0) [status, reason] = ["bad", "Christened before birth"];
+    else if (days <= 60) [status, reason] = ["ok", `Christened ${days} day${days === 1 ? "" : "s"} after birth`];
+    else if (days <= 3 * 365) {
+      const months = Math.min(11, Math.max(2, Math.round(days / 30.4)));
+      const years = Math.floor(days / 365);
+      [status, reason] = ["ok", days < 365 ? `Christened ${months} months after birth` : `Christened ${years} year${years === 1 ? "" : "s"} after birth`];
+    } else [status, reason] = ["close", `Christened ${Math.floor(days / 365)} years after birth`];
+  } else {
+    const years = christened[0] - born[1];
+    if (years < -1) [status, reason] = ["bad", "Christened before birth"];
+    else if (years <= 2) [status, reason] = ["ok", "Christened soon after birth"];
+    else [status, reason] = ["close", `Christened ${years} years after birth`];
+  }
+  return {
+    label: "Born / christened",
+    kind: "date",
+    record: birthOnRecord ? birth.dateText : christening.dateText,
+    tree: birthOnRecord ? christening.dateText : birth.dateText,
+    status,
+    reason,
+    showReason: status === "ok",
+  };
+}
+
 /**
  * Builds the comparison rows for one record person and their tree match.
  * @param recordPerson - The person on the record.
@@ -405,6 +466,14 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
     }
     if (recordDate || treeDate) rows.push(row(dateLabel, "date", recordDate, treeDate, dateHighlight));
     if (recordPlace || treePlace) rows.push(row(placeLabel, "place", recordPlace, treePlace, placeScore));
+  }
+
+  // A birth on one side and only a christening on the other: in parish records (Chile's, most of all) the
+  // christening is often the only date, so the two are set side by side
+  const baptism = birthAndChristening(recordPerson, treePerson);
+  if (baptism) {
+    const after = rows.reduce((last, row, i) => (["Born", "Birthplace", "Christened", "Christening place"].includes(row.label) ? i : last), 0);
+    rows.splice(after + 1, 0, baptism);
   }
 
   // A spouse on one side with the surname the other side uses explains it: the tree's Fannie Hanovich

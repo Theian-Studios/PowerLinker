@@ -85,18 +85,33 @@
     margin-bottom: 16px;
 }
 
-.hint-type-select {
-    appearance: none;
-    -webkit-appearance: none;
+/* Duplicates or records: two words like tabs above the question, the chosen one dark and underlined in olive */
+.hint-kind {
+    display: flex;
+    gap: 18px;
+    margin: 0 0 10px;
+}
+.hint-kind-option {
     min-width: 0;
+    padding: 2px 0 3px;
     border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
     box-shadow: none;
-    background: transparent url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2375736b' stroke-width='1.5'/></svg>") no-repeat right center;
-    padding: 2px 16px 2px 0;
+    background: none;
     font: inherit;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
+    font-weight: 600;
     color: var(--pl-muted);
     cursor: pointer;
+}
+.hint-kind-option:hover:not(.is-chosen) {
+    color: var(--pl-ink);
+}
+.hint-kind-option.is-chosen {
+    border-bottom-color: var(--pl-olive);
+    color: var(--pl-ink);
+    cursor: default;
 }
 
 /* Shown when the record summary is missing a vital fact, pointing to the original source */
@@ -234,6 +249,12 @@
 .vote-btn:active:not(:disabled) {
     transform: scale(0.96);
 }
+/* Spanish answers are longer ("Misma persona"): kept on one line, a little smaller on narrow phones */
+html[lang="es"] .vote-btn {
+    white-space: nowrap;
+    padding-inline: 6px;
+    font-size: clamp(0.8rem, 4.1vw, 1.05rem);
+}
 /* A ripple spreads from where an answer was pressed (pressFeedback) */
 .vote-btn {
     position: relative;
@@ -337,7 +358,7 @@
 
 .vote-btn:focus-visible,
 .vote-link:focus-visible,
-.hint-type-select:focus-visible,
+.hint-kind-option:focus-visible,
 .check-source:focus-visible {
     outline: 2px solid var(--pl-muted);
     outline-offset: 2px;

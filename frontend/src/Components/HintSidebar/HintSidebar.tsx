@@ -3,6 +3,8 @@ import { ReactElement, useContext, useEffect, useState } from "react";
 import { CompareRow, Status } from "../CompareTable/compareRows";
 import { CONTEXT, ContextState, STREAK_GOAL, STREAK_POINTS } from "../../Models/Context";
 import useStreakGlow from "../../Hooks/useStreakGlow";
+import { CHILE, tr } from "../../Services/region";
+import { say, sayValue } from "../../Services/spanish";
 
 export interface PersonRows {
   heading: string;
@@ -15,9 +17,9 @@ const HELP_OPEN_KEY = "powerlinker.helpOpen";
 const MAX_ISSUES = 3;
 
 const COUNT_LABELS: Record<Exclude<Status, "none">, [string, string, string]> = {
-  ok: ["✓", "match", "matches"],
-  close: ["!", "variation", "variations"],
-  bad: ["✕", "conflict", "conflicts"],
+  ok: ["✓", tr("match", "coincidencia"), tr("matches", "coincidencias")],
+  close: ["!", tr("variation", "variación"), tr("variations", "variaciones")],
+  bad: ["✕", tr("conflict", "conflicto"), tr("conflicts", "conflictos")],
 };
 
 /**
@@ -44,23 +46,23 @@ function SessionProgress(): ReactElement {
 
   return (
     <section className="side-card progress-card">
-      <h2 className="side-title">Points</h2>
+      <h2 className="side-title">{tr("Points", "Puntos")}</h2>
       <div className="points-total">{context.points}</div>
       <div className="streak-labels">
-        <span><b>{done}</b> of {STREAK_GOAL} in a row</span>
+        <span><b>{done}</b> {tr("of", "de")} {STREAK_GOAL} {tr("in a row", "seguidas")}</span>
         <span className="streak-bonus">+{STREAK_POINTS}</span>
       </div>
       <div
         className="streak-track"
         role="progressbar"
-        aria-label={`Answers in a row toward ${STREAK_POINTS} points`}
+        aria-label={tr(`Answers in a row toward ${STREAK_POINTS} points`, `Respuestas seguidas para ganar ${STREAK_POINTS} puntos`)}
         aria-valuemin={0}
         aria-valuemax={STREAK_GOAL}
         aria-valuenow={done}
       >
         <div className={`streak-fill${glow ? " is-growing" : ""}`} style={{ width: `${progress * 100}%` }} />
       </div>
-      <p className="progress-sub">Missing a check hint starts the count over.</p>
+      <p className="progress-sub">{tr("Missing a check hint starts the count over.", "Si fallas una pregunta de control, tu racha vuelve a cero.")}</p>
     </section>
   );
 }
@@ -88,7 +90,7 @@ function Evidence({ people }: { people: PersonRows[] }): ReactElement {
 
   return (
     <section className="side-card">
-      <h2 className="side-title">Evidence</h2>
+      <h2 className="side-title">{tr("Evidence", "Evidencia")}</h2>
       {/* Only the kinds the hint has: "0 conflicts" is noise */}
       <div className="evidence-counts">
         {(["ok", "close", "bad"] as const).filter((status) => counts[status] > 0).map((status) => (
@@ -103,16 +105,16 @@ function Evidence({ people }: { people: PersonRows[] }): ReactElement {
             <li key={i} className={`evidence-item evidence-item--${row.status}`}>
               <span className="evidence-icon" aria-hidden="true">{row.status === "bad" ? "✕" : "!"}</span>
               <span className="evidence-text">
-                <span className="evidence-what">{people.length > 1 ? `${person} · ` : ""}{row.label}</span>
-                {row.reason && <span className="evidence-reason">{row.reason}</span>}
-                <span className="evidence-values">{row.record} <span className="evidence-vs">vs</span> {row.tree}</span>
+                <span className="evidence-what">{people.length > 1 ? `${say(person)} · ` : ""}{say(row.label)}</span>
+                {row.reason && <span className="evidence-reason">{say(row.reason)}</span>}
+                <span className="evidence-values">{sayValue(row.kind, row.record)} <span className="evidence-vs">vs</span> {sayValue(row.kind, row.tree)}</span>
               </span>
             </li>
           ))}
           {issues.length > MAX_ISSUES && (
             <li className="evidence-more">
               <button type="button" className="evidence-toggle" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
-                {showAll ? "Show fewer ▴" : `Show ${issues.length - MAX_ISSUES} more ▾`}
+                {showAll ? tr("Show fewer ▴", "Ver menos ▴") : tr(`Show ${issues.length - MAX_ISSUES} more ▾`, `Ver ${issues.length - MAX_ISSUES} más ▾`)}
               </button>
             </li>
           )}
@@ -143,7 +145,18 @@ function HowToDecide(): ReactElement {
         }
       }}
     >
-      <summary className="side-title">Tips</summary>
+      <summary className="side-title">{tr("Tips", "Consejos")}</summary>
+      {CHILE ? (
+        <ul className="help-list">
+          <li><b>Dos apellidos.</b> Primero va el del padre y luego el de la madre. Muchos registros antiguos traen solo el paterno, y eso no es una diferencia.</li>
+          <li><b>Las mujeres conservaban su apellido.</b> «Pérez de Soto» quiere decir casada con un Soto, no que se llamara Soto.</li>
+          <li><b>Muchos usaban su segundo nombre.</b> «María del Carmen» puede aparecer solo como «Carmen».</li>
+          <li><b>Hijos naturales.</b> Un hijo de padres no casados puede llevar solo los apellidos de la madre.</li>
+          <li><b>«Segundo» y «Tercero» son nombres,</b> no números.</li>
+          <li><b>Mira la familia.</b> Muchos lugares dicen solo «Chile», así que los nombres de los padres suelen decidir más que las fechas.</li>
+          <li><b>¿Tienes dudas? Elige No sé.</b> Siempre es mejor que adivinar.</li>
+        </ul>
+      ) : (
       <ul className="help-list">
         <li><b>A matching name isn&apos;t enough.</b> Fathers and sons, and cousins, often share a name. Check the birth years and places.</li>
         <li><b>Small differences are normal.</b> Ages were often guessed, so a year or two off is just a variation. Places can be more or less specific.</li>
@@ -151,6 +164,7 @@ function HowToDecide(): ReactElement {
         <li><b>Look at the family.</b> If the spouse or children don&apos;t line up, it&apos;s probably a different family.</li>
         <li><b>Unsure? Choose Not sure.</b> It&apos;s always better than guessing.</li>
       </ul>
+      )}
     </details>
   );
 }
@@ -163,7 +177,7 @@ function HowToDecide(): ReactElement {
  */
 export default function HintSidebar({ people }: { people: PersonRows[] }): ReactElement {
   return (
-    <aside className="hint-sidebar" aria-label="Progress, evidence and tips">
+    <aside className="hint-sidebar" aria-label={tr("Progress, evidence and tips", "Progreso, evidencia y consejos")}>
       <SessionProgress />
       <Evidence people={people} />
       <HowToDecide />

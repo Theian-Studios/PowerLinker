@@ -1,6 +1,7 @@
 import { FormEvent, ReactElement, ReactNode, TouchEvent, useEffect, useRef, useState } from "react";
 import { STREAK_GOAL, STREAK_POINTS } from "../../Models/Context";
 import { MAX_NAME_LENGTH, saveVolunteerName, volunteerName } from "../../Services/sheetsApi";
+import { CHILE, tr } from "../../Services/region";
 import "./Tutorial.css";
 
 /** How far a finger has to move sideways before it counts as a swipe, in pixels. */
@@ -17,13 +18,14 @@ const ICON: Record<Status, string> = { ok: "✓", close: "!", bad: "✕" };
  * @param {Array} props.rows - Each row as [label, record, tree, status, reason].
  * @returns {ReactElement} The small table.
  */
-function Rows({ rows }: { rows: [string, string, string, Status, string][] }): ReactElement {
+function Rows({ rows }: { rows: (readonly [string, string, string, Status, string])[] }): ReactElement {
   return (
     <div className="intro-table">
       <div className="intro-row intro-row--head" aria-hidden="true">
         <span />
-        <span>Record</span>
-        <span>Tree</span>
+        {/* The Chilean site compares two people on the tree */}
+        <span>{tr("Record", "Persona 1")}</span>
+        <span>{tr("Tree", "Persona 2")}</span>
         <span />
       </div>
       {rows.map(([label, record, tree, status, reason], i) => (
@@ -31,7 +33,7 @@ function Rows({ rows }: { rows: [string, string, string, Status, string][] }): R
           <span className="intro-label">{label}</span>
           <span>{record}</span>
           <span>{tree}</span>
-          <span className={`intro-icon intro-icon--${status}`} aria-label={status === "ok" ? "Matches" : status === "close" ? "Close" : "Doesn’t match"}>
+          <span className={`intro-icon intro-icon--${status}`} aria-label={status === "ok" ? tr("Matches", "Coincide") : status === "close" ? tr("Close", "Parecido") : tr("Doesn’t match", "No coincide")}>
             {ICON[status]}
           </span>
           <span className={`intro-reason intro-reason--${status}`}>{reason}</span>
@@ -57,73 +59,108 @@ function ColorTitle({ status, children }: { status: Status; children: string }):
   );
 }
 
-/** The six cards, in order. */
+/** The cards, in order: six, and on the Chilean site a seventh about Chilean names. */
 const CARDS: ReactNode[] = [
   <div key="why" className="intro-spread">
     <img className="intro-logo" src={`${import.meta.env.BASE_URL}RLL_Logo.png`} alt="" />
-    <h2 className="intro-title">Help families find their ancestors</h2>
-    <p className="intro-middle">People in historical records are waiting to be reconnected with their families. The right match puts them on the tree.</p>
-    <p className="intro-closing"><b>That’s why we need you.</b></p>
+    <h2 className="intro-title">{tr("Help families find their ancestors", "Ayuda a las familias a encontrar a sus antepasados")}</h2>
+    <p className="intro-middle">{tr("People in historical records are waiting to be reconnected with their families. The right match puts them on the tree.", "Hay personas en registros históricos que esperan reencontrarse con sus familias. Cada coincidencia correcta las suma al árbol.")}</p>
+    <p className="intro-closing"><b>{tr("That’s why we need you.", "Por eso te necesitamos.")}</b></p>
   </div>,
   <div key="how" className="intro-spread">
-    <h2 className="intro-title">How it works</h2>
+    <h2 className="intro-title">{tr("How it works", "Cómo funciona")}</h2>
     <ol className="intro-steps">
-      <li><span>Read the record</span></li>
-      <li><span>Compare it with the person on the tree</span></li>
+      <li><span>{tr("Read the record", "Mira a las dos personas del árbol")}</span></li>
+      <li><span>{tr("Compare it with the person on the tree", "Compara sus datos y su familia")}</span></li>
       <li className="intro-step--answers">
         <span>
-          Tap
+          {tr("Tap", "Toca")}
           <span className="intro-choices">
-            <span className="intro-pill intro-pill--no">✕ Different</span>
-            or
-            <span className="intro-pill intro-pill--yes">✓ Same person</span>
+            <span className="intro-pill intro-pill--no">✕ {tr("Different", "Otra persona")}</span>
+            {tr("or", "o")}
+            <span className="intro-pill intro-pill--yes">✓ {tr("Same person", "Misma persona")}</span>
           </span>
         </span>
       </li>
     </ol>
-    <p className="intro-muted intro-bottom">Can’t tell? <b>Not sure</b> is always OK.</p>
+    <p className="intro-muted intro-bottom">{CHILE ? <>¿Tienes dudas? Elegir <b>No sé</b> siempre está bien.</> : <>Can’t tell? <b>Not sure</b> is always OK.</>}</p>
   </div>,
+  // Chilean names, before the colors: the cards' examples use them
+  ...(CHILE ? [
+    <div key="names">
+      <h2 className="intro-title">Nombres en Chile</h2>
+      <p>Primero va el apellido del padre y luego el de la madre.</p>
+      <Rows rows={[
+        ["Nombre", "José González", "José González Pérez", "ok", "Solo un lado tiene el apellido materno"],
+        ["Nombre", "José Pérez", "José González Pérez", "close", "Solo el apellido materno"],
+        ["Nombre", "María Soto", "María Pérez de Soto", "close", "«de Soto»: casada con un Soto"],
+      ]} />
+    </div>,
+  ] : []),
   <>
-    <ColorTitle status="ok">Green: go</ColorTitle>
+    <ColorTitle status="ok">{tr("Green: go", "Verde: adelante")}</ColorTitle>
     <Rows rows={[
-      ["Name", "Polly", "Mary", "ok", "Nickname"],
-      ["Residence", "Salem Township", "Salem", "ok", "Same town"],
+      // The Chilean site's examples are Chilean, each scored by the app as shown here
+      ...(CHILE ? [
+        ["Nombre", "Pepe", "José", "ok", "Apodo"],
+        ["Residencia", "Talca", "Talca, Maule", "ok", "Misma localidad"],
+      ] as const : [
+        ["Name", "Polly", "Mary", "ok", "Nickname"],
+        ["Residence", "Salem Township", "Salem", "ok", "Same town"],
+      ] as const),
     ]} />
     <div className="intro-family">
-      <div className="intro-family-head">Family on the record</div>
+      <div className="intro-family-head">{tr("Family on the record", "Familia en el registro")}</div>
       <div className="intro-family-line">
-        <span className="intro-icon intro-icon--ok" aria-label="Matches">✓</span>
-        <span><b>John</b> · husband</span>
+        <span className="intro-icon intro-icon--ok" aria-label={tr("Matches", "Coincide")}>✓</span>
+        {CHILE ? <span><b>Juan</b> · esposo</span> : <span><b>John</b> · husband</span>}
       </div>
     </div>
-    <p className="intro-verdict intro-verdict--ok">Mostly green → <b>Same person</b></p>
+    <p className="intro-verdict intro-verdict--ok">{CHILE ? <>Casi todo verde → <b>Misma persona</b></> : <>Mostly green → <b>Same person</b></>}</p>
   </>,
   <>
-    <ColorTitle status="close">Yellow: slow down</ColorTitle>
+    <ColorTitle status="close">{tr("Yellow: slow down", "Amarillo: con calma")}</ColorTitle>
     <Rows rows={[
-      ["Name", "Ann", "Mary Ann", "close", "Went by her middle name"],
-      ["Name", "J. Smith", "John Smith", "close", "Only an initial"],
-      ["Birthplace", "Prussia", "Germany", "close", "Border changed"],
+      ...(CHILE ? [
+        ["Nombre", "Carmen", "María del Carmen", "close", "Usaba su segundo nombre"],
+        ["Nombre", "Rosa Soto", "Rosa Pérez de Soto", "close", "Apellido de casada"],
+        ["Lugar de nacimiento", "Chillán, Ñuble", "Chillán, Biobío", "close", "Cambiaron los límites"],
+      ] as const : [
+        ["Name", "Ann", "Mary Ann", "close", "Went by her middle name"],
+        ["Name", "J. Smith", "John Smith", "close", "Only an initial"],
+        ["Birthplace", "Prussia", "Germany", "close", "Border changed"],
+      ] as const),
     ]} />
-    <p className="intro-verdict intro-verdict--close">Usually still <b>the same person</b></p>
+    <p className="intro-verdict intro-verdict--close">{CHILE ? <>Por lo general sigue siendo <b>la misma persona</b></> : <>Usually still <b>the same person</b></>}</p>
   </>,
   <>
-    <ColorTitle status="bad">Red: stop and look</ColorTitle>
+    <ColorTitle status="bad">{tr("Red: stop and look", "Rojo: detente y revisa")}</ColorTitle>
     <Rows rows={[
-      ["Died", "1931", "1913", "bad", "Typo? Digits swapped"],
-      ["Birthplace", "Ohio", "Texas", "bad", "Different places"],
+      [tr("Died", "Falleció"), "1931", "1913", "bad", tr("Typo? Digits swapped", "¿Error de digitación? Números invertidos")],
+      CHILE
+        ? ["Lugar de nacimiento", "Talca", "Temuco", "bad", "Regiones distintas"] as const
+        : ["Birthplace", "Ohio", "Texas", "bad", "Different places"] as const,
     ]} />
-    <p className="intro-verdict intro-verdict--bad">1 red → maybe a typo<br />2 or more → <b>Different</b></p>
+    <p className="intro-verdict intro-verdict--bad">{CHILE ? <>1 rojo → quizás un error de digitación<br />2 o más → <b>Otra persona</b></> : <>1 red → maybe a typo<br />2 or more → <b>Different</b></>}</p>
   </>,
   <>
     <div className="intro-points" aria-hidden="true">
-      <div className="intro-points-labels"><span><b>0</b> points</span><span>{STREAK_GOAL - EXAMPLE_STREAK} more for +{STREAK_POINTS}</span></div>
+      <div className="intro-points-labels"><span><b>0</b> {tr("points", "puntos")}</span><span>{CHILE ? `${STREAK_GOAL - EXAMPLE_STREAK} más para +${STREAK_POINTS}` : `${STREAK_GOAL - EXAMPLE_STREAK} more for +${STREAK_POINTS}`}</span></div>
       <div className="intro-points-track"><div className="intro-points-fill" style={{ width: `${(EXAMPLE_STREAK / STREAK_GOAL) * 100}%` }} /></div>
     </div>
     <div className="intro-art" aria-hidden="true">⚡</div>
-    <h2 className="intro-title">Earn points</h2>
-    <p>{STREAK_GOAL} hints in a row = <b>+{STREAK_POINTS} points</b>.</p>
-    <p>Miss a check hint and your streak resets. <b>Not sure</b> never does.</p>
+    <h2 className="intro-title">{tr("Earn points", "Gana puntos")}</h2>
+    {CHILE ? (
+      <>
+        <p>{STREAK_GOAL} respuestas seguidas = <b>+{STREAK_POINTS} puntos</b>.</p>
+        <p>Si fallas una pregunta de control, tu racha vuelve a cero. Elegir <b>No sé</b> no la afecta.</p>
+      </>
+    ) : (
+      <>
+        <p>{STREAK_GOAL} hints in a row = <b>+{STREAK_POINTS} points</b>.</p>
+        <p>Miss a check hint and your streak resets. <b>Not sure</b> never does.</p>
+      </>
+    )}
   </>,
 ];
 
@@ -253,9 +290,9 @@ export default function Tutorial({ onClose, welcome = false }: { onClose: () => 
   // The welcome's last card asks for the name; Start (the main button) sends this form
   const nameCard = (
     <div className="intro-spread">
-      <h2 className="intro-title">Before you start</h2>
+      <h2 className="intro-title">{tr("Before you start", "Antes de comenzar")}</h2>
       <form id="intro-name-form" className="intro-name" onSubmit={start}>
-        <label htmlFor="intro-name">Your name helps the lab see who answered each hint.</label>
+        <label htmlFor="intro-name">{tr("Your name helps the lab see who answered each hint.", "Tu nombre ayuda al laboratorio a saber quién revisó cada sugerencia.")}</label>
         <input
           id="intro-name"
           ref={nameInput}
@@ -269,7 +306,7 @@ export default function Tutorial({ onClose, welcome = false }: { onClose: () => 
         />
       </form>
       <button type="button" className="intro-skip-name" onClick={dismiss} tabIndex={onNameCard ? 0 : -1}>
-        Skip for now
+        {tr("Skip for now", "Omitir por ahora")}
       </button>
     </div>
   );
@@ -283,9 +320,9 @@ export default function Tutorial({ onClose, welcome = false }: { onClose: () => 
         if (pressedOutside.current && event.target === event.currentTarget) dismiss();
       }}
     >
-      <div className="intro-panel" role="dialog" aria-modal="true" aria-roledescription="carousel" aria-label="How PowerLinker works">
-        {!welcome && <button type="button" className="intro-close" aria-label="Close" onClick={dismiss}>✕</button>}
-        {welcome && !onNameCard && <button type="button" className="intro-skip" onClick={dismiss}>Skip</button>}
+      <div className="intro-panel" role="dialog" aria-modal="true" aria-roledescription="carousel" aria-label={tr("How PowerLinker works", "Cómo funciona PowerLinker")}>
+        {!welcome && <button type="button" className="intro-close" aria-label={tr("Close", "Cerrar")} onClick={dismiss}>✕</button>}
+        {welcome && !onNameCard && <button type="button" className="intro-skip" onClick={dismiss}>{tr("Skip", "Omitir")}</button>}
         <div className="intro-viewport" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={onTouchEnd}>
           <div
             className={`intro-track${drag ? " is-dragging" : ""}`}
@@ -296,7 +333,7 @@ export default function Tutorial({ onClose, welcome = false }: { onClose: () => 
                 key={i}
                 className="intro-card"
                 aria-roledescription="slide"
-                aria-label={`${i + 1} of ${count}`}
+                aria-label={tr(`${i + 1} of ${count}`, `${i + 1} de ${count}`)}
                 aria-hidden={i !== index}
               >
                 {card}
@@ -310,7 +347,7 @@ export default function Tutorial({ onClose, welcome = false }: { onClose: () => 
               key={i}
               type="button"
               className={`intro-dot${i === index ? " is-current" : ""}`}
-              aria-label={`Card ${i + 1} of ${count}`}
+              aria-label={tr(`Card ${i + 1} of ${count}`, `Tarjeta ${i + 1} de ${count}`)}
               aria-current={i === index}
               onClick={() => go(i)}
             />
@@ -319,12 +356,12 @@ export default function Tutorial({ onClose, welcome = false }: { onClose: () => 
         {welcome && onNameCard
           ? (
             <button ref={next} type="submit" form="intro-name-form" className="intro-next" disabled={!name.trim()}>
-              Start
+              {tr("Start", "Comenzar")}
             </button>
           )
           : (
             <button ref={next} type="button" className="intro-next" onClick={() => (last ? onClose() : go(index + 1))}>
-              {index === 0 ? "Show me how" : last ? "Start" : "Next"}
+              {index === 0 ? tr("Show me how", "Muéstrame cómo") : last ? tr("Start", "Comenzar") : tr("Next", "Siguiente")}
             </button>
           )}
       </div>

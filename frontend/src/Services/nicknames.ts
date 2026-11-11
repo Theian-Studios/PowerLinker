@@ -302,7 +302,91 @@ const WOMEN: string[][] = [
   ["winifred", "winnie", "win", "freda"],
 ];
 
-export const NICKNAMES: string[][] = [...MEN, ...WOMEN];
+/**
+ * Spanish names and the forms they go by in Chile and the rest of Latin America: Pepe for José, Pancho and Paco
+ * for Francisco, Lucho for Luis, Chela for Graciela, Charo for Rosario. Accents are dropped (Toño is "tono").
+ */
+const SPANISH_MEN: string[][] = [
+  ["jose", "pepe", "pepito", "chepe", "cheo", "josecito", "pepin"],
+  ["francisco", "pancho", "paco", "pacho", "curro", "kiko", "quico", "panchito", "francho"],
+  ["luis", "lucho", "luisito", "lucho"],
+  ["ignacio", "nacho", "nachito"],
+  ["guillermo", "memo", "guille", "william", "willy"],
+  ["manuel", "manolo", "manolito", "manuelito", "lolo"],
+  ["enrique", "quique", "henrique", "enriquito"],
+  ["antonio", "tono", "tonito", "anto"],
+  ["alberto", "beto", "albertito"],
+  ["roberto", "beto", "robertito"],
+  ["humberto", "beto", "umberto"],
+  ["jesus", "chucho", "chuy", "chus"],
+  ["rafael", "rafa", "felo"],
+  ["fernando", "nando", "fer", "hernando"],
+  ["eduardo", "lalo", "edo"],
+  ["gonzalo", "chalo"],
+  ["gregorio", "goyo"],
+  ["gustavo", "tavo"],
+  ["octavio", "tavo"],
+  ["rodrigo", "rodri"],
+  ["sebastian", "seba"],
+  ["vicente", "vicho", "chente"],
+  ["nicolas", "nico"],
+  ["patricio", "pato"],
+  ["juan", "juancho", "juanito", "juancito"],
+  ["pedro", "perico", "peyo", "pedrito"],
+  ["salvador", "chava", "salva"],
+  ["joaquin", "juaco", "quin"],
+  ["alejandro", "alejo", "jano", "ale"],
+  ["domingo", "mingo"],
+  ["ramon", "moncho"],
+  ["jorge", "coke", "koke", "jorgito"],
+  ["armando", "mando"],
+  ["benjamin", "benja"],
+  ["maximiliano", "maxi", "max"],
+  ["bartolome", "bartolo"],
+  ["ricardo", "richi", "cayo"],
+  ["santiago", "santi", "chago"],
+  ["agustin", "agucho"],
+  ["andres", "andy"],
+];
+
+const SPANISH_WOMEN: string[][] = [
+  ["maria", "mari", "maruja", "marucha", "maruca", "mariquita", "meri"],
+  ["josefa", "pepa", "pepita", "chepa", "josefina", "fina"],
+  ["francisca", "pancha", "paca", "paquita", "panchita"],
+  ["dolores", "lola", "lolita"],
+  ["concepcion", "concha", "conchita", "conce"],
+  ["rosario", "charo", "chayo"],
+  ["guadalupe", "lupe", "lupita"],
+  ["graciela", "chela"],
+  ["isabel", "chabela", "isa", "elisabet", "elizabeth"],
+  ["consuelo", "chelo"],
+  ["mercedes", "meche", "merche", "mecha"],
+  ["socorro", "coco"],
+  ["catalina", "cata", "caty"],
+  ["fernanda", "fena"],
+  ["javiera", "javi"],
+  ["antonia", "tona", "anto"],
+  ["ana", "anita"],
+  ["teresa", "tere", "teresita"],
+  ["carmen", "carmencita", "menchu"],
+  ["magdalena", "malena", "magda"],
+  ["trinidad", "trini"],
+  ["asuncion", "chona"],
+  ["eugenia", "quena"],
+  ["patricia", "pati", "paty"],
+  ["beatriz", "bea"],
+  ["pilar", "pili"],
+  ["soledad", "sole", "chole"],
+  ["juana", "juanita"],
+  ["ximena", "jimena"],
+  ["purificacion", "pura"],
+  ["eulalia", "lala", "laly"],
+  ["gertrudis", "tula"],
+  ["rosa", "rosita"],
+  ["luz", "lucita"],
+];
+
+export const NICKNAMES: string[][] = [...MEN, ...WOMEN, ...SPANISH_MEN, ...SPANISH_WOMEN];
 
 /** Other common men's names of the period, beyond those in the lists above, for telling men's names from women's. */
 const OTHER_MEN = [
@@ -313,6 +397,15 @@ const OTHER_MEN = [
   "lyman", "mack", "marshall", "marvin", "milo", "newton", "noah", "omer", "orval", "orville", "otis", "otto",
   "owen", "perry", "porter", "roosevelt", "roscoe", "roy", "rupert", "seth", "sherman", "troy", "ulysses", "virgil",
   "wade", "wallace", "ward", "warren", "wayne", "wiley", "willard", "willis",
+  // Spanish and Chilean
+  "carlos", "mario", "sergio", "raul", "oscar", "hector", "hugo", "julio", "ruben", "victor", "rene", "segundo",
+  "nibaldo", "eliecer", "heriberto", "osvaldo", "waldo", "nelson", "orlando", "fidel", "gaspar", "marcelino",
+  "florencio", "abelardo", "ismael", "ernesto", "aurelio", "teodoro", "jacinto", "eusebio", "anselmo", "belisario",
+  "bernardino", "clodomiro", "desiderio", "eladio", "emiliano", "feliciano", "filiberto", "gumercindo", "hermogenes",
+  "hipolito", "juvenal", "leoncio", "lisandro", "macario", "nicanor", "pascual", "rigoberto", "romualdo", "rosendo",
+  "telesforo", "zenon", "baltazar", "cipriano", "exequiel", "ezequiel", "gabino", "lautaro", "pablo", "diego",
+  "cristian", "claudio", "matias", "felipe", "daniel", "gabriel", "miguel", "angel", "lorenzo", "marcos", "isidoro",
+  "eugenio", "luciano", "mauricio", "marcelo", "rolando", "arnoldo", "edmundo", "gilberto", "renato", "wenceslao",
 ];
 
 /** Other common women's names of the period, beyond those in the lists above. */
@@ -321,6 +414,14 @@ const OTHER_WOMEN = [
   "ethel", "eula", "eunice", "flora", "geraldine", "georgette", "gladys", "hazel", "ida", "inez", "iva", "joan",
   "juanita", "june", "justina", "lela", "leona", "lois", "lola", "loretta", "martina", "maxine", "myrtle", "nina",
   "norma", "olive", "opal", "phyllis", "roberta", "ruby", "thelma", "vera", "verna", "viola", "violet",
+  // Spanish and Chilean
+  "luisa", "elena", "ines", "margarita", "laura", "sara", "raquel", "eliana", "olga", "gloria", "silvia", "sonia",
+  "marcela", "carolina", "claudia", "paola", "pamela", "marisol", "yolanda", "berta", "blanca", "clara", "irma",
+  "lidia", "lucia", "marta", "nelly", "rebeca", "zoila", "rosalia", "amparo", "esperanza", "fresia", "edita",
+  "adriana", "natalia", "emilia", "ernestina", "filomena", "herminia", "hortensia", "ignacia", "leontina", "lorenza",
+  "manuela", "matilde", "nieves", "petronila", "rosalba", "zunilda", "rosaura", "clorinda", "griselda", "haydee",
+  "delia", "elba", "elsa", "aurora", "celia", "cecilia", "amelia", "valentina", "camila", "constanza", "daniela",
+  "isidora", "alejandra", "gabriela", "mireya", "orfelina", "uberlinda", "erminda", "edelmira", "brunilda",
 ];
 
 /**

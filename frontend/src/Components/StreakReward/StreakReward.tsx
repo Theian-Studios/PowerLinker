@@ -1,5 +1,6 @@
 import { ReactElement, useEffect, useRef, useState } from "react";
 import { STREAK_GOAL, STREAK_POINTS } from "../../Models/Context";
+import { CHILE, tr } from "../../Services/region";
 import "./StreakReward.css";
 
 /** Longer names than this would wrap onto a second line in a column, so they show as the given name alone. */
@@ -27,8 +28,9 @@ function fitName(name: string): string {
  * @returns {ReactElement} The celebration.
  */
 export default function StreakReward({ names, onClose }: { names: string[]; onClose: () => void }): ReactElement {
-    const people = names.length === 1 ? "person" : "people";
-    const families = names.length === 1 ? "their family" : "their families";
+    const one = names.length === 1;
+    const people = CHILE ? (one ? "persona que ayudaste" : "personas que ayudaste") : one ? "person" : "people";
+    const families = CHILE ? (one ? "su familia" : "sus familias") : one ? "their family" : "their families";
     const list = useRef<HTMLUListElement>(null);
     const [moreBelow, setMoreBelow] = useState(false);
 
@@ -50,15 +52,15 @@ export default function StreakReward({ names, onClose }: { names: string[]; onCl
     return (
         <div className="reward-screen" role="alertdialog" aria-labelledby="reward-count" aria-describedby="reward-points">
             <div className="reward-screen-body">
-                <div className="reward-points" id="reward-points">+{STREAK_POINTS} points</div>
+                <div className="reward-points" id="reward-points">+{STREAK_POINTS} {tr("points", "puntos")}</div>
                 {names.length > 0 ? (
                     <>
                         <div className="reward-count" id="reward-count">
                             <span className="reward-number">{names.length}</span>
-                            <span className="reward-line">{people} helped back<br />to {families}</span>
+                            <span className="reward-line">{CHILE ? <>{people}<br />a reencontrarse con {families}</> : <>{people} helped back<br />to {families}</>}</span>
                         </div>
                         <div className={`reward-card${moreBelow ? " reward-card--more" : ""}`}>
-                            <div className="reward-card-label" id="reward-names-label">Their names</div>
+                            <div className="reward-card-label" id="reward-names-label">{tr("Their names", "Sus nombres")}</div>
                             <ul ref={list} className={`reward-list${names.length > 1 ? " reward-list--2" : ""}${names.length >= WIDE_LIST ? " reward-list--wide" : ""}`}
                                 aria-labelledby="reward-names-label" tabIndex={moreBelow ? 0 : undefined} onScroll={checkMore}>
                                 {names.map((name) => <li key={name} title={name}>{fitName(name)}</li>)}
@@ -68,15 +70,17 @@ export default function StreakReward({ names, onClose }: { names: string[]; onCl
                 ) : (
                     <div className="reward-count" id="reward-count">
                         <span className="reward-number">{STREAK_GOAL}</span>
-                        <span className="reward-line">careful answers<br />in a row</span>
+                        <span className="reward-line">{CHILE ? <>respuestas cuidadosas<br />seguidas</> : <>careful answers<br />in a row</>}</span>
                     </div>
                 )}
             </div>
             <div className="reward-streak">
-                {names.length > 0 ? `${STREAK_GOAL} careful answers in a row` : "Thank you for the careful work."}
+                {names.length > 0
+                    ? tr(`${STREAK_GOAL} careful answers in a row`, `${STREAK_GOAL} respuestas cuidadosas seguidas`)
+                    : tr("Thank you for the careful work.", "Gracias por tu trabajo cuidadoso.")}
             </div>
             <button type="button" className="reward-continue reward-screen-button" autoFocus onClick={onClose}>
-                Keep going
+                {tr("Keep going", "Seguir respondiendo")}
             </button>
         </div>
     );

@@ -2,6 +2,7 @@ import { FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { CONTEXT, ContextState } from "../../Models/Context";
 import { MAX_NAME_LENGTH, saveVolunteerName, shouldAskName, volunteerName } from "../../Services/sheetsApi";
 import Tutorial from "../Tutorial/Tutorial";
+import { tr } from "../../Services/region";
 import "./ProfileButton.css";
 
 /**
@@ -63,7 +64,7 @@ export default function ProfileButton() {
 
   return (
     <>
-      <button type="button" className="profile-button" aria-label="Profile" aria-haspopup="dialog" onClick={openPanel}>
+      <button type="button" className="profile-button" aria-label={tr("Profile", "Perfil")} aria-haspopup="dialog" onClick={openPanel}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="8.5" r="3.6" />
           <path d="M4.8 19.5c1.3-3.3 4-5 7.2-5s5.9 1.7 7.2 5" />
@@ -80,22 +81,22 @@ export default function ProfileButton() {
             onSubmit={save}
           >
             <div className="profile-head">
-              <h2 id="profile-title">Profile</h2>
-              <button type="button" className="profile-close" aria-label="Close" onClick={close}>✕</button>
+              <h2 id="profile-title">{tr("Profile", "Perfil")}</h2>
+              <button type="button" className="profile-close" aria-label={tr("Close", "Cerrar")} onClick={close}>✕</button>
             </div>
             <dl className="profile-stats">
               <div className="profile-stat">
-                <dt>Points</dt>
+                <dt>{tr("Points", "Puntos")}</dt>
                 <dd>{context.points.toLocaleString()}</dd>
               </div>
               <div className="profile-stat">
-                <dt>Hints answered</dt>
+                <dt>{tr("Hints answered", "Sugerencias revisadas")}</dt>
                 <dd>{context.answered.toLocaleString()}</dd>
               </div>
             </dl>
-            <p className="profile-note">All time, on this device.</p>
+            <p className="profile-note">{tr("All time, on this device.", "En total, en este dispositivo.")}</p>
             <label className="profile-label" htmlFor="profile-name">
-              Your name
+              {tr("Your name", "Tu nombre")}
             </label>
             <div className="profile-row">
               <input
@@ -112,10 +113,10 @@ export default function ProfileButton() {
                 spellCheck={false}
               />
               <button type="submit" className="profile-save" disabled={!name.trim()}>
-                Enter
+                {tr("Enter", "Guardar")}
               </button>
             </div>
-            {saved && <p className="profile-message profile-message--accepted" role="status">Saved.</p>}
+            {saved && <p className="profile-message profile-message--accepted" role="status">{tr("Saved.", "Guardado.")}</p>}
           </form>
         </div>
       )}

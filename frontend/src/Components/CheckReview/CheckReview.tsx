@@ -1,5 +1,7 @@
 import { ReactElement } from "react";
 import { CompareRow } from "../CompareTable/compareRows";
+import { CHILE, tr } from "../../Services/region";
+import { say, sayValue } from "../../Services/spanish";
 import "./CheckReview.css";
 
 /** The most facts shown: enough to see why, short enough to read on a phone. */
@@ -85,47 +87,51 @@ export default function CheckReview({ review, sides, onClose }: {
   return (
     <div className="streak-lost-overlay" role="alertdialog" aria-labelledby="check-review-title" aria-describedby="check-review-answer">
       <div className="streak-lost check-review">
-        <div className="check-review-title" id="check-review-title">That was a check hint</div>
+        <div className="check-review-title" id="check-review-title">{tr("That was a check hint", "Era una pregunta de control")}</div>
         <p className="check-review-answer" id="check-review-answer">
-          {same ? <>These two are <b>the same person</b>.</> : <>These are <b>two different people</b>.</>}
+          {CHILE
+            ? same ? <>Estas dos son <b>la misma persona</b>.</> : <>Estas son <b>dos personas distintas</b>.</>
+            : same ? <>These two are <b>the same person</b>.</> : <>These are <b>two different people</b>.</>}
         </p>
         {review.facts.length > 0 && (
           <>
-            <div className="check-review-lead">{same ? "What matches:" : "What tells them apart:"}</div>
+            <div className="check-review-lead">{same ? tr("What matches:", "Lo que coincide:") : tr("What tells them apart:", "Lo que las distingue:")}</div>
             <div className="check-review-table">
               <div className="check-review-row check-review-row--head" aria-hidden="true">
                 <span />
-                <span>{sides[0]}</span>
-                <span>{sides[1]}</span>
+                <span>{say(sides[0])}</span>
+                <span>{say(sides[1])}</span>
                 <span />
               </div>
               {review.facts.map((fact, i) => (
                 <div key={i} className={`check-review-row check-review-row--${fact.status}`}>
-                  <span className="check-review-label">{fact.who ? <>{fact.who}<br />{fact.label.toLowerCase()}</> : fact.label}</span>
-                  <span>{fact.record || "–"}</span>
-                  <span>{fact.tree || "–"}</span>
+                  <span className="check-review-label">{fact.who ? <>{say(fact.who)}<br />{say(fact.label).toLowerCase()}</> : say(fact.label)}</span>
+                  <span>{sayValue(fact.kind, fact.record) || "–"}</span>
+                  <span>{sayValue(fact.kind, fact.tree) || "–"}</span>
                   <span className={`check-review-icon check-review-icon--${fact.status}`}
-                    aria-label={fact.status === "ok" ? "Matches" : fact.status === "close" ? "Close" : "Doesn’t match"}>
+                    aria-label={fact.status === "ok" ? tr("Matches", "Coincide") : fact.status === "close" ? tr("Close", "Parecido") : tr("Doesn’t match", "No coincide")}>
                     {fact.status === "ok" ? "✓" : fact.status === "close" ? "!" : "✕"}
                   </span>
-                  {fact.reason && fact.status !== "ok" && <span className={`check-review-reason check-review-reason--${fact.status}`}>{fact.reason}</span>}
+                  {fact.reason && fact.status !== "ok" && <span className={`check-review-reason check-review-reason--${fact.status}`}>{say(fact.reason)}</span>}
                 </div>
               ))}
             </div>
           </>
         )}
-        {same && review.sameFamily && <p className="check-review-note"><b>Same family:</b> {review.sameFamily}.</p>}
+        {same && review.sameFamily && <p className="check-review-note"><b>{tr("Same family:", "Misma familia:")}</b> {review.sameFamily}.</p>}
         {same && review.conflicts > 0 && (
           <p className="check-review-note">
-            {review.conflicts === 1 ? "One fact disagrees" : `${review.conflicts} facts disagree`}, but more match: one side probably has a mistake.
+            {CHILE
+              ? `${review.conflicts === 1 ? "Un dato no coincide" : `${review.conflicts} datos no coinciden`}, pero coinciden más: probablemente un lado tiene un error.`
+              : `${review.conflicts === 1 ? "One fact disagrees" : `${review.conflicts} facts disagree`}, but more match: one side probably has a mistake.`}
           </p>
         )}
         <p className="check-review-care">
-          {review.streakLost ? "Your count of answers in a row starts over. " : ""}
-          Check hints help keep answers accurate, so please take a little more care.
+          {review.streakLost ? tr("Your count of answers in a row starts over. ", "Tu racha vuelve a cero. ") : ""}
+          {tr("Check hints help keep answers accurate, so please take a little more care.", "Las preguntas de control nos ayudan a que las respuestas sean confiables. Tómate un poco más de tiempo en cada una.")}
         </p>
         <button type="button" className="reward-continue" autoFocus onClick={onClose}>
-          Got it
+          {tr("Got it", "Entendido")}
         </button>
       </div>
     </div>

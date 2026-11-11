@@ -2,7 +2,8 @@
 .help-button {
     position: absolute;
     top: 10px;
-    left: 12px;
+    /* The drawn circle (6px inside the button) lines up with the points and bar below, 16px from the edge */
+    left: 8px;
     display: grid;
     place-items: center;
     width: 36px;
@@ -40,7 +41,7 @@
 @media screen and (min-width: 601px) {
     .help-button {
         top: 18px;
-        left: 20px;
+        left: 16px;
     }
 }
 

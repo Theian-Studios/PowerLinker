@@ -2,6 +2,8 @@ import "./FamilySummary.css";
 import { Fragment, ReactElement, useEffect, useState } from "react";
 import { CompareFact } from "../CompareTable/CompareTable";
 import { CompareRow } from "../CompareTable/compareRows";
+import { CHILE, tr } from "../../Services/region";
+import { say, sayValue } from "../../Services/spanish";
 
 export interface FamilyMember {
   /** Relationship to the main person, e.g. "Son". */
@@ -37,12 +39,12 @@ const MAX_PER_PERSON = 2;
 const ORDER: Record<Worst, number> = { bad: 0, close: 1, none: 2, ok: 3 };
 const ICON: Record<Worst, string> = { bad: "✕", close: "!", ok: "✓", none: "" };
 
-/** Events with a date row and a place row, and the word each goes by in a list. */
-const EVENTS: [string, string, string][] = [
-  ["Born", "Birthplace", "birth"],
-  ["Died", "Death place", "death"],
-  ["Married", "Marriage place", "marriage"],
-  ["Buried", "Burial place", "burial"],
+/** Events with a date row and a place row, and the word each goes by in a list, in English and Spanish. */
+const EVENTS: [string, string, string, string][] = [
+  ["Born", "Birthplace", "birth", "nacimiento"],
+  ["Died", "Death place", "death", "defunción"],
+  ["Married", "Marriage place", "marriage", "matrimonio"],
+  ["Buried", "Burial place", "burial", "sepultura"],
 ];
 
 /**
@@ -51,7 +53,7 @@ const EVENTS: [string, string, string][] = [
  * @returns One phrase joined with commas and "and".
  */
 function joinList(words: string[]): string {
-  return words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+  return words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} ${tr("and", "y")} ${words[words.length - 1]}`;
 }
 
 /**
@@ -68,17 +70,18 @@ function describeMatches(rows: CompareRow[]): string | undefined {
    */
   const ok = (label: string): CompareRow | undefined => rows.find((row) => row.label === label && row.status === "ok");
   const same: string[] = [];
-  if (ok("Name")) same.push("name");
-  for (const [dateLabel, placeLabel, word] of EVENTS) {
+  if (ok("Name")) same.push(tr("name", "nombre"));
+  for (const [dateLabel, placeLabel, word, palabra] of EVENTS) {
     const date = ok(dateLabel);
     const place = ok(placeLabel);
-    if (date && place) same.push(word);
-    else if (date) same.push(`${word} ${/\d{1,2} \S+ \d{4}/.test(date.record ?? "") ? "date" : "year"}`);
-    else if (place) same.push(placeLabel.toLowerCase());
+    const fullDate = /\d{1,2} \S+ \d{4}/.test(date?.record ?? "");
+    if (date && place) same.push(tr(word, palabra));
+    else if (date) same.push(CHILE ? `${fullDate ? "fecha" : "año"} de ${palabra}` : `${word} ${fullDate ? "date" : "year"}`);
+    else if (place) same.push(say(placeLabel).toLowerCase());
   }
-  if (ok("Residence")) same.push("town");
+  if (ok("Residence")) same.push(tr("town", "localidad"));
   if (same.length === 0) return undefined;
-  return `matching ${joinList(same)}`;
+  return CHILE ? `coinciden: ${joinList(same)}` : `matching ${joinList(same)}`;
 }
 
 /**
@@ -95,8 +98,8 @@ function summarize(family: FamilyMember[]): Entry[] {
       const worst: Worst = issues.length ? (issues[0].status as Worst) : member.notOnTree || member.onlyOnTree ? "none" : "ok";
       // Name first, so the relationship reads as a label rather than part of the name
       const who = member.fullName || member.name;
-      const relation = (member.heading === "Other" ? "relative" : member.heading).toLowerCase();
-      return { who: who || member.heading, relation: who ? relation : undefined, worst, issues, onlyOnTree: member.onlyOnTree, matches: describeMatches(member.rows) };
+      const relation = say((member.heading === "Other" ? "relative" : member.heading).toLowerCase());
+      return { who: who || say(member.heading), relation: who ? relation : undefined, worst, issues, onlyOnTree: member.onlyOnTree, matches: describeMatches(member.rows) };
     })
     .sort((a, b) => ORDER[a.worst] - ORDER[b.worst]);
 }
@@ -126,23 +129,23 @@ export default function FamilySummary({ family, sides }: { family: FamilyMember[
   const hidden = entries.reduce((sum, entry) => sum + Math.max(0, entry.issues.length - MAX_PER_PERSON), 0);
 
   const columns: [string, string] = sides ?? ["Record", "Tree"];
-  const title = sides ? "Family" : "Family on the record";
+  const title = say(sides ? "Family" : "Family on the record");
 
   return (
-    <section className="family" aria-label={sides ? `Family of ${sides[0]}` : "Family on the record"}>
+    <section className="family" aria-label={sides ? `${tr("Family of", "Familia de")} ${say(sides[0])}` : say("Family on the record")}>
       {showAll ? (
-        <div className="family-table" role="table" aria-label={`${title}: ${columns[0]} compared with ${columns[1]}`}>
+        <div className="family-table" role="table" aria-label={`${title}: ${say(columns[0])} ${tr("compared with", "comparado con")} ${say(columns[1])}`}>
           {/* The card's gray header doubles as the column headings, so there's one header, not two */}
           <div className="compare-row compare-row--head family-head" role="row">
             <span role="columnheader" className="compare-label family-head-title">{title}</span>
-            <span role="columnheader">{columns[0]}</span>
-            <span role="columnheader">{columns[1]}</span>
-            <span role="columnheader" className="compare-status" aria-label="Match"></span>
+            <span role="columnheader">{say(columns[0])}</span>
+            <span role="columnheader">{say(columns[1])}</span>
+            <span role="columnheader" className="compare-status" aria-label={tr("Match", "Coincidencia")}></span>
           </div>
           {compared.map((member, i) => (
             <Fragment key={i}>
               <div className="family-group" role="row">
-                <span role="rowheader">{member.heading}</span>
+                <span role="rowheader">{say(member.heading)}</span>
               </div>
               {member.rows.filter((row) => row.record || row.tree).map((row, j) => (
                 <CompareFact key={row.label + j} row={row} first={j === 0} notOnTree={member.notOnTree} sides={columns} />
@@ -162,15 +165,15 @@ export default function FamilySummary({ family, sides }: { family: FamilyMember[
                   <span>
                     <b>{entry.who}</b>
                     {entry.relation && <span className="family-relation"> · {entry.relation}</span>}
-                    {entry.worst === "ok" && <span className="family-note"> · {entry.matches ?? "no differences"}</span>}
+                    {entry.worst === "ok" && <span className="family-note"> · {entry.matches ?? tr("no differences", "sin diferencias")}</span>}
                     {/* Both people are on the tree when comparing two of them, so it's the other one's family that lacks them */}
-                    {entry.worst === "none" && <span className="family-note"> · {sides ? `not listed for ${entry.onlyOnTree ? sides[0] : sides[1]}` : "isn’t on the tree"}</span>}
+                    {entry.worst === "none" && <span className="family-note"> · {sides ? `${tr("not listed for", "no aparece en")} ${say(entry.onlyOnTree ? sides[0] : sides[1])}` : tr("isn’t on the tree", "no está en el árbol")}</span>}
                   </span>
                   {entry.issues.slice(0, MAX_PER_PERSON).map((row, j) => (
                     <span key={j} className="family-detail">
-                      {row.label} ·{" "}
-                      {row.reason && <span className={`family-reason family-reason--${row.status}`}>{row.reason} · </span>}
-                      <span className="family-values">{row.record} <span className="family-vs">vs</span> {row.tree}</span>
+                      {say(row.label)} ·{" "}
+                      {row.reason && <span className={`family-reason family-reason--${row.status}`}>{say(row.reason)} · </span>}
+                      <span className="family-values">{sayValue(row.kind, row.record)} <span className="family-vs">vs</span> {sayValue(row.kind, row.tree)}</span>
                     </span>
                   ))}
                 </span>
@@ -182,10 +185,13 @@ export default function FamilySummary({ family, sides }: { family: FamilyMember[
       <div className="family-footer">
         <button type="button" className="family-toggle" onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>
           {showAll
-            ? "Show only differences ▴"
+            ? tr("Show only differences ▴", "Ver solo las diferencias ▴")
             : hidden > 0
-              ? `See all family facts (+${hidden} more ${hidden === 1 ? "difference" : "differences"}) ▾`
-              : "See all family facts ▾"}
+              ? tr(
+                `See all family facts (+${hidden} more ${hidden === 1 ? "difference" : "differences"}) ▾`,
+                `Ver todos los datos de la familia (+${hidden} ${hidden === 1 ? "diferencia más" : "diferencias más"}) ▾`,
+              )
+              : tr("See all family facts ▾", "Ver todos los datos de la familia ▾")}
         </button>
       </div>
     </section>

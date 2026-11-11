@@ -1,4 +1,5 @@
 import { SHEETS_URL } from "./sheetsApi"
+import { CHILE } from "./region"
 
 /**
  * Returns whether the app is running against a local backend: on this computer, or opened from
@@ -16,8 +17,12 @@ function isLocal(): boolean {
  * @returns {string} The Lambda API URL for the current environment.
  */
 export default function getLambdaURL(path: string): string {
-    // The public site: the Sheet's script takes the same query string, without the /hints path
-    if (SHEETS_URL) return SHEETS_URL + path.slice(path.indexOf("?") === -1 ? path.length : path.indexOf("?"))
+    // The public site: the Sheet's script takes the same query string, without the /hints path. The Chilean site
+    // adds region=cl, so the Sheet answers from its Chile tabs (index.html's early request adds it the same way).
+    if (SHEETS_URL) {
+        const query = path.slice(path.indexOf("?") === -1 ? path.length : path.indexOf("?"))
+        return SHEETS_URL + (CHILE && query ? `${query}&region=cl` : query)
+    }
     const host = window.location.hostname
     if (host.endsWith("rll-dev.byu.edu"))
         return "https://api.powerlinker.rll-dev.byu.edu" + path

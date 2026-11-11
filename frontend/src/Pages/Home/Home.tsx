@@ -4,12 +4,13 @@ import { ReactElement, useCallback, useContext, useEffect, useRef, useState } fr
 import newDummyData from "../../Models/ParentDummyData.json";
 import { CONTEXT, ContextState, /* Context, getInitialContext */ } from "../../Models/Context.ts";
 import { invalidateSession } from "../../Hooks/useLambdaFetch.ts";
-import { saveUpcoming, savedCursor, savedUpcoming, usingSheets } from "../../Services/sheetsApi.ts";
+import { chooseHintType, saveUpcoming, savedCursor, savedHintType, savedUpcoming, usingSheets } from "../../Services/sheetsApi.ts";
 import { getPersons } from "../../Services/getPersons.ts";
 import useQueue, { QueuedVote } from "../../Hooks/useQueue.ts";
 import useOnline from "../../Hooks/useOnline.ts";
 import { isOnline } from "../../Services/network.ts";
 import { useHomeHandlers } from "./utils.ts";
+import { CHILE, tr } from "../../Services/region.ts";
 
 const MAX_HINTS_IN_QUEUE = 20;
 /** How often hints that couldn't load are asked for again. */
@@ -26,12 +27,21 @@ const ONLINE_SPREAD_MS = 5000;
  * @returns The note, or undefined when all is well.
  */
 function connectionNote(online: boolean, waiting: number, failing: boolean, hintsShown: boolean): string | undefined {
-  const answers = `${waiting} ${waiting === 1 ? "answer" : "answers"}`;
+  const one = waiting === 1;
+  const answers = CHILE ? `${waiting} ${one ? "respuesta" : "respuestas"}` : `${waiting} ${one ? "answer" : "answers"}`;
   if (!online) {
-    if (waiting > 0) return `You’re offline. ${answers} will be sent when you’re back online.`;
-    return hintsShown ? "You’re offline. You can keep answering the hints already loaded." : undefined;
+    if (waiting > 0) {
+      return CHILE
+        ? `Estás sin conexión. ${one ? "Tu respuesta se enviará" : `Tus ${answers} se enviarán`} cuando vuelvas a conectarte.`
+        : `You’re offline. ${answers} will be sent when you’re back online.`;
+    }
+    return hintsShown ? tr("You’re offline. You can keep answering the hints already loaded.", "Estás sin conexión. Puedes seguir respondiendo las sugerencias que ya se cargaron.") : undefined;
   }
-  if (failing && waiting > 0) return `${answers} haven’t reached the lab yet. They’re kept on this device and will be sent again shortly.`;
+  if (failing && waiting > 0) {
+    return CHILE
+      ? `${one ? "1 respuesta aún no llega" : `${answers} aún no llegan`} al laboratorio. ${one ? "Está guardada" : "Están guardadas"} en este dispositivo y se ${one ? "enviará" : "enviarán"} de nuevo en breve.`
+      : `${answers} haven’t reached the lab yet. They’re kept on this device and will be sent again shortly.`;
+  }
   return undefined;
 }
 
@@ -46,8 +56,14 @@ export default function Home(): ReactElement {
 
   const [attachQueue, setAttachQueue] = useState<QueuedVote[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  // The public site only has the lab's possible duplicates
-  const [hintType, setHintType] = useState<string>(usingSheets ? "possible_duplicate" : "record_attachment");
+  // On the public site, the kind the volunteer chose last time
+  // The Chilean site has only possible duplicates for now
+  const [hintType, setHintTypeState] = useState<string>(CHILE ? "possible_duplicate" : usingSheets ? savedHintType() : "record_attachment");
+  const setHintType = useCallback((type: string) => {
+    // Switched before the queue reloads, so it loads the new kind's saved hints and place
+    chooseHintType(type);
+    setHintTypeState(type);
+  }, []);
   const [loadError, setLoadError] = useState<boolean>(false);
   const awaitingHints = useRef<boolean>(false);
   // Answers waiting to be sent; each leaves the queue once the backend has it
@@ -145,18 +161,18 @@ export default function Home(): ReactElement {
     <div className="page-home">
       {typeof newDummyData === "string" ? (
         <div>
-          <div className="hint-message">{"Hint message"}</div>
+          <div className="hint-message">{tr("Hint message", "Mensaje de sugerencia")}</div>
           {hintsDone > 0 ? (
-            <h3 className="counter">{"You completed " + hintsDone + " hints."}</h3>
+            <h3 className="counter">{tr(`You completed ${hintsDone} hints.`, `Revisaste ${hintsDone} ${hintsDone === 1 ? "sugerencia" : "sugerencias"}.`)}</h3>
           ) : (
             <div/>
           )}
         </div>
       ) : newDummyData instanceof Error ? (
         <div>
-          <div className="hint-message">{"Hint message"}</div>
+          <div className="hint-message">{tr("Hint message", "Mensaje de sugerencia")}</div>
           {hintsDone > 0 ? (
-            <h3 className="counter">{"You completed " + hintsDone + " hints."}</h3>
+            <h3 className="counter">{tr(`You completed ${hintsDone} hints.`, `Revisaste ${hintsDone} ${hintsDone === 1 ? "sugerencia" : "sugerencias"}.`)}</h3>
           ) : (
             <div/>
           )}

@@ -1,13 +1,15 @@
 import "./CompareTable.css";
 import { ReactElement } from "react";
 import { CompareRow, Status } from "./compareRows";
+import { tr } from "../../Services/region";
+import { say, sayValue } from "../../Services/spanish";
 
 const STATUS_ICON: Record<Status, { symbol: string; label: string }> = {
-  ok: { symbol: "✓", label: "Matches" },
-  close: { symbol: "!", label: "Close, but not exact" },
-  bad: { symbol: "✕", label: "Doesn't match" },
+  ok: { symbol: "✓", label: tr("Matches", "Coincide") },
+  close: { symbol: "!", label: tr("Close, but not exact", "Parecido, pero no exacto") },
+  bad: { symbol: "✕", label: tr("Doesn't match", "No coincide") },
   // Rows with only one side get no mark at all
-  none: { symbol: "", label: "Nothing to compare" },
+  none: { symbol: "", label: tr("Nothing to compare", "Nada que comparar") },
 };
 
 /**
@@ -28,16 +30,16 @@ export default function CompareTable({ rows, heading, notOnTree, sides = ["Recor
   // A missing value shows a plain dash; a person with no tree match still says so
   return (
     <section className="compare">
-      {heading && <h3 className="compare-heading">{heading}</h3>}
-      <div className="compare-table" role="table" aria-label={`${heading ? `${heading}: ` : ""}${sides[0]} compared with ${sides[1]}`}>
+      {heading && <h3 className="compare-heading">{say(heading)}</h3>}
+      <div className="compare-table" role="table" aria-label={`${heading ? `${say(heading)}: ` : ""}${say(sides[0])} ${tr("compared with", "comparado con")} ${say(sides[1])}`}>
         <div className="compare-row compare-row--head" role="row">
           {/* On desktop the heading moves into this row, so it sticks along with it */}
-          <span role="columnheader" className="compare-label" aria-label="Detail">
-            {heading && <span className="compare-head-person">{heading}</span>}
+          <span role="columnheader" className="compare-label" aria-label={tr("Detail", "Dato")}>
+            {heading && <span className="compare-head-person">{say(heading)}</span>}
           </span>
-          <span role="columnheader">{sides[0]}</span>
-          <span role="columnheader">{sides[1]}</span>
-          <span role="columnheader" className="compare-status" aria-label="Match"></span>
+          <span role="columnheader">{say(sides[0])}</span>
+          <span role="columnheader">{say(sides[1])}</span>
+          <span role="columnheader" className="compare-status" aria-label={tr("Match", "Coincidencia")}></span>
         </div>
         {rows.map((row, i) => <CompareFact key={row.label + i} row={row} first={i === 0} notOnTree={notOnTree} sides={sides} />)}
       </div>
@@ -62,25 +64,25 @@ export function CompareFact({ row, first, notOnTree, sides }: {
 }): ReactElement {
   return (
     <div className={`compare-row compare-row--${row.status}${first ? " compare-row--name" : ""}`} role="row">
-      <span className="compare-label" role="rowheader">{row.label}</span>
+      <span className="compare-label" role="rowheader">{say(row.label)}</span>
       {/* A shortened place shows in full on hover */}
       <span className="compare-value" role="cell" title={row.recordFull}>
-        {row.record ? row.record : <span className="compare-missing" aria-label="Not given">–</span>}
+        {row.record ? sayValue(row.kind, row.record) : <span className="compare-missing" aria-label={tr("Not given", "No aparece")}>–</span>}
       </span>
       <span className="compare-value" role="cell" title={row.treeFull}>
-        {row.tree ? row.tree : (first && notOnTree
-          ? <span className="compare-missing">{sides[1] === "Tree" ? "not on tree" : "not listed"}</span>
-          : <span className="compare-missing" aria-label="Not given">–</span>)}
+        {row.tree ? sayValue(row.kind, row.tree) : (first && notOnTree
+          ? <span className="compare-missing">{sides[1] === "Tree" ? tr("not on tree", "no está en el árbol") : tr("not listed", "no aparece")}</span>
+          : <span className="compare-missing" aria-label={tr("Not given", "No aparece")}>–</span>)}
       </span>
       {/* Why a close or conflicting row is marked, right under the values: "1 year apart", "Different states" */}
       {row.reason && (row.status === "close" || row.status === "bad" || row.showReason) && (
-        <span className={`compare-reason compare-reason--${row.status}${row.reasonSide ? ` compare-reason--${row.reasonSide}` : ""}`}>{row.reason}</span>
+        <span className={`compare-reason compare-reason--${row.status}${row.reasonSide ? ` compare-reason--${row.reasonSide}` : ""}`}>{say(row.reason)}</span>
       )}
       <span className="compare-status" role="cell">
         <span
           className={`status-icon status-icon--${row.status}`}
-          title={row.reason ? `${STATUS_ICON[row.status].label}: ${row.reason}` : STATUS_ICON[row.status].label}
-          aria-label={row.reason ? `${STATUS_ICON[row.status].label}: ${row.reason}` : STATUS_ICON[row.status].label}
+          title={row.reason ? `${STATUS_ICON[row.status].label}: ${say(row.reason)}` : STATUS_ICON[row.status].label}
+          aria-label={row.reason ? `${STATUS_ICON[row.status].label}: ${say(row.reason)}` : STATUS_ICON[row.status].label}
         >
           {STATUS_ICON[row.status].symbol}
         </span>

@@ -86,6 +86,8 @@
 }
 .intro-card {
     flex: 0 0 100%;
+    /* Never wider than the panel, whatever a card holds */
+    min-width: 0;
     box-sizing: border-box;
     min-height: 330px;
     padding: 12px 20px 4px;
@@ -186,8 +188,9 @@
 /* Both answer buttons on one line under the step, as they sit side by side in the app */
 .intro-choices {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 4px 6px;
     margin-top: 2px;
     white-space: nowrap;
 }
@@ -204,6 +207,11 @@
     .intro-choices .intro-pill {
         padding: 2px 6px;
         font-size: 0.78rem;
+    }
+    /* The Spanish answers are longer */
+    html[lang="es"] .intro-choices .intro-pill {
+        padding: 2px 5px;
+        font-size: 0.74rem;
     }
 }
 /* The welcome's last card: the name question, the box, and a quiet way past it */

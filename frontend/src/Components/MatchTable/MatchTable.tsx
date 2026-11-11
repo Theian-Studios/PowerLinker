@@ -9,6 +9,8 @@ import LinkAnimation from "../LinkAnimation/LinkAnimation.tsx";
 import { Relationship } from "../../Models/Relationship.ts";
 import { Event } from "../../Models/Event.ts";
 import FlexibleDate from "flexibledatets";
+import { tr } from "../../Services/region";
+import { say, sayDate } from "../../Services/spanish";
 
 /**
  * Year-only labels for narrow headers; breakpoint must match
@@ -181,7 +183,7 @@ export default function MatchTable({
               setAttached(true);
             }}
           >
-            Create New
+            {tr("Create New", "Crear nueva")}
           </button>
         )}
       <LinkAnimation isBroken={isBroken} className="link-animation"/>
@@ -218,7 +220,7 @@ export default function MatchTable({
             }}
             type="button"
           >
-            {showDetails ? "Hide details ▴" : "Show details ▾"}
+            {showDetails ? tr("Hide details ▴", "Ocultar detalles ▴") : tr("Show details ▾", "Ver detalles ▾")}
           </button>
         </div>
       )}
@@ -244,7 +246,7 @@ export default function MatchTable({
           // A fact only one side has: show its real values there, and "Not on …" on the other side
           const isOneSided = getIsOneSidedTreeFact(eventType) || getIsOneSidedRecordFact(eventType);
           const isMissingHere = eventsOfType.length === 0;
-          const missingMessage = side === "tree" ? "Not on tree" : "Not on record";
+          const missingMessage = side === "tree" ? tr("Not on tree", "No está en el árbol") : tr("Not on record", "No está en el registro");
           // Nothing to compare for one-sided facts, so they get no color
           const dateHighlight = isOneSided ? HighlightType.None : highlightType;
           const placeHighlight = isOneSided ? HighlightType.None : placeHighlightType;
@@ -260,17 +262,17 @@ export default function MatchTable({
             >
               {isMissingHere && isOneSided && (
                 <div className="detail unmatched-detail">
-                  <h6>{eventType}</h6>
+                  <h6>{say(eventType)}</h6>
                   <div className="unmatched-text">{missingMessage}</div>
                 </div>
               )}
               {eventsOfType.map((event, j) => (
                   <div className="detail" key={eventType + j}>
-                    <h6>{event.type}</h6>
+                    <h6>{say(event.type ?? "")}</h6>
 
                     <div className={`date ${highlightClass(dateHighlight)}`}>
                       {" "}
-                      {event.date?.toString()}
+                      {sayDate(event.date?.toString() ?? "")}
                     </div>
 
                     <div className={`location ${highlightClass(placeHighlight)}`}>
@@ -327,7 +329,7 @@ export function MatchHeader({
 
       <span className="lifespan">
         <span className="lifespan-text lifespan-text--full">
-          {candidate.birth?.date?.toString() || "?"} - {candidate.death?.date?.toString() || "?"}
+          {sayDate(candidate.birth?.date?.toString() || "?")} - {sayDate(candidate.death?.date?.toString() || "?")}
         </span>
         <span className="lifespan-text lifespan-text--year">
           {lifespanYearLabel(candidate.birth?.date)} - {lifespanYearLabel(candidate.death?.date)}
@@ -336,9 +338,9 @@ export function MatchHeader({
       
       <span className="pid">{candidate.pid}</span>
       {fromRecord ? (
-        <RecordSVG alt={candidate.sex} style={{ color: imageColor }} />
+        <RecordSVG alt={say(candidate.sex ?? "")} style={{ color: imageColor }} />
       ) : (
-        <img src={imageUrl} alt={candidate.sex} className="person-icon" />
+        <img src={imageUrl} alt={say(candidate.sex ?? "")} className="person-icon" />
       )}
     </div>
   );

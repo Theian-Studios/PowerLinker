@@ -12,6 +12,8 @@
       (function () {
         var url = "%VITE_SHEETS_URL%";
         if (!url || url.charAt(0) === "%") return;
+        // The Chilean site asks for its Chile hints; the query the app compares stays the same
+        var region = "%VITE_REGION%" === "cl" ? "&region=cl" : "";
         // Apps Script sends every answer on to googleusercontent.com, so connect to it now rather than after
         // the first reply
         if (url.indexOf("https://script.google.com/") === 0) {
@@ -22,17 +24,21 @@
           document.head.appendChild(link);
         }
         try {
-          var after = Number(localStorage.getItem("powerlinker.cursor"));
+          // Records keep their own place, under keys ending in ".records" (sheetsApi.ts)
+          // The Chilean site has only duplicates for now
+          var type = !region && localStorage.getItem("powerlinker.hintType") === "record_attachment" ? "record_attachment" : "possible_duplicate";
+          var suffix = (type === "record_attachment" ? ".records" : "") + region.replace("&region=", ".");
+          var after = Number(localStorage.getItem("powerlinker.cursor" + suffix));
           if (!(after > 0)) after = -1;
-          var upcoming = JSON.parse(localStorage.getItem("powerlinker.upcoming") || "[]");
+          var upcoming = JSON.parse(localStorage.getItem("powerlinker.upcoming" + suffix) || "[]");
           for (var i = 0; i < upcoming.length; i++) {
             if (upcoming[i]["insert-time"] > after) after = upcoming[i]["insert-time"];
           }
-          var query = "?record_type=possible_duplicate&last_insert_time=" + after + "&count=20" +
+          var query = "?record_type=" + type + "&last_insert_time=" + after + "&count=20" +
             (after < 0 ? "&start=random" : "") + "&with_check=true";
           window.powerlinkerFirstHints = {
             query: query,
-            response: fetch(url + query, { credentials: "omit" })
+            response: fetch(url + query + region, { credentials: "omit" })
               .then(function (r) { return r.ok ? r.json().then(function (data) { return { ok: true, data: data }; }) : null; })
               .catch(function () { return null; }),
           };

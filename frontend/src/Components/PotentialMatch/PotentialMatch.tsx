@@ -4,6 +4,8 @@ import NewWindowLink from "../NewWindowLink/NewWindowLink.tsx";
 import { Person } from "../../Models/Person"
 import MatchTable from "../MatchTable/MatchTable";
 import { ReactElement } from "react";
+import { tr } from "../../Services/region";
+import { say } from "../../Services/spanish";
 
 /**
  * Potential Match Component - Defines comparison table component which has two iterations:
@@ -91,13 +93,13 @@ export function PotentialMatch({
     <div className="potential-match">
       <h4>
         <div className="relationship-label">
-          {displayRelationship}
+          {say(displayRelationship)}
         </div>
         <div className="source-linker-button">
           {displayRelationship === "Focus" ? (
             <NewWindowLink
               url={personUrl ? personUrl : ""}
-              linkName="Check Source"
+              linkName={tr("Check Source", "Ver fuente")}
             />
           ) : null}
         </div>

@@ -3,6 +3,7 @@
 // otherwise it uses the lab's AWS API or the local mock, as before.
 
 import { v4 } from "uuid";
+import { CHILE } from "./region";
 import type { QueueItem } from "../Hooks/useQueue";
 import { REQUEST_TIMEOUT_MS, timeoutSignal } from "./network";
 
@@ -119,6 +120,49 @@ export function sheetsBeacon(body: Record<string, unknown>): boolean {
   }
 }
 
+const HINT_TYPE_KEY = "powerlinker.hintType";
+const HINT_TYPES = ["possible_duplicate", "record_attachment"];
+// The kind of hint being answered. Duplicates and records are handed out from separate places, each numbered on its
+// own, so each kind keeps its own furthest answer and its own saved hints.
+let hintKind = CHILE ? HINT_TYPES[0] : savedHintType();
+
+/**
+ * Gets the kind of hint this browser chose last time: possible duplicates, or records to attach.
+ * @returns {string} "possible_duplicate" or "record_attachment".
+ */
+export function savedHintType(): string {
+  try {
+    const saved = localStorage.getItem(HINT_TYPE_KEY) ?? "";
+    return HINT_TYPES.includes(saved) ? saved : HINT_TYPES[0];
+  } catch {
+    return HINT_TYPES[0];
+  }
+}
+
+/**
+ * Switches the kind of hint being answered, and remembers it for the next visit.
+ * @param {string} hintType - "possible_duplicate" or "record_attachment".
+ */
+export function chooseHintType(hintType: string): void {
+  hintKind = hintType;
+  try {
+    localStorage.setItem(HINT_TYPE_KEY, hintType);
+  } catch {
+    // The choice lasts until the page closes
+  }
+}
+
+/**
+ * Gives the storage key for something kept per kind of hint and per site. English duplicates keep the keys from
+ * before there were two kinds, so returning volunteers keep their place. The Chilean site, at /chile/ on the same
+ * address, shares the browser's storage, so its hints are kept apart under keys ending in ".cl".
+ * @param {string} key - The English duplicates' key.
+ * @returns {string} The key for the kind being answered on this site.
+ */
+function kindKey(key: string): string {
+  return `${key}${hintKind === "record_attachment" ? ".records" : ""}${CHILE ? ".cl" : ""}`;
+}
+
 const CURSOR_KEY = "powerlinker.cursor";
 
 /**
@@ -130,7 +174,7 @@ const CURSOR_KEY = "powerlinker.cursor";
 export function savedCursor(): number {
   if (!usingSheets) return -1;
   try {
-    const value = Number(localStorage.getItem(CURSOR_KEY));
+    const value = Number(localStorage.getItem(kindKey(CURSOR_KEY)));
     return Number.isFinite(value) && value > 0 ? value : -1;
   } catch {
     return -1;
@@ -144,7 +188,7 @@ export function savedCursor(): number {
 export function saveCursor(insertTime: number): void {
   if (!usingSheets || insertTime <= savedCursor()) return;
   try {
-    localStorage.setItem(CURSOR_KEY, String(insertTime));
+    localStorage.setItem(kindKey(CURSOR_KEY), String(insertTime));
   } catch {
     // Without storage the next visit starts from the beginning, as before
   }
@@ -162,7 +206,7 @@ const UPCOMING_COUNT = 20;
 export function saveUpcoming(hints: unknown[]): void {
   if (!usingSheets) return;
   try {
-    localStorage.setItem(UPCOMING_KEY, JSON.stringify(hints.slice(0, UPCOMING_COUNT)));
+    localStorage.setItem(kindKey(UPCOMING_KEY), JSON.stringify(hints.slice(0, UPCOMING_COUNT)));
   } catch {
     // Too big for storage, or storage blocked: the next visit waits on the Sheet, as before
   }
@@ -175,7 +219,7 @@ export function saveUpcoming(hints: unknown[]): void {
 export function savedUpcoming(): unknown[] {
   if (!usingSheets) return [];
   try {
-    const saved = JSON.parse(localStorage.getItem(UPCOMING_KEY) ?? "[]");
+    const saved = JSON.parse(localStorage.getItem(kindKey(UPCOMING_KEY)) ?? "[]");
     const cursor = savedCursor();
     return Array.isArray(saved) ? saved.filter((hint) => Number(hint?.["insert-time"]) > cursor) : [];
   } catch {

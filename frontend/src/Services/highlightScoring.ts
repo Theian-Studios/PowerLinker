@@ -1,4 +1,6 @@
 import FlexibleDate from "flexibledatets";
+import { CHILE } from "./region";
+import { CHILE_COMMUNE_REGION } from "./chileCommunes";
 // Only the lab name comparator's list of name variants is used; its pronunciation and frequency data, with the
 // libraries it needs, were most of the app's download
 import nameVariants from "namecomparator-ts/dist/data/nicknames/nameVariants.json";
@@ -85,7 +87,35 @@ export function differentSex(a: string, b: string): boolean {
    */
   const feminine = (man: string, other: string) => nameSex(man) === "male" && nameSex(other) === undefined
     && other.startsWith(man) && FEMININE_ENDING.test(other.slice(man.length));
-  return feminine(a, b) || feminine(b, a);
+  /**
+   * Checks whether two names are a Spanish man's and woman's pair, differing only in the last letter: Francisco and
+   * Francisca, Mario and María, Julio and Julia.
+   * @param man - A name ending in "o".
+   * @param other - The other name.
+   * @returns True for such a pair.
+   */
+  const spanishPair = (man: string, other: string) => man.length >= 4 && man.endsWith("o") && other === `${man.slice(0, -1)}a`;
+  // Only on the Chilean site: elsewhere it would split Italian surnames like Romano and Romana
+  return feminine(a, b) || feminine(b, a) || (CHILE && (spanishPair(a, b) || spanishPair(b, a)));
+}
+
+/** Score for two words that are the same in Spanish speech, only spelled differently: Gonzales and González. */
+const SPANISH_SPELLING_SCORE = 92;
+
+/**
+ * Writes a word as it sounds in Spanish, so spellings of one sound come out the same: a silent h dropped, v as b,
+ * z and soft c as s, ll as y, soft g and x as j, qu and hard c as k, and doubled letters once. Henríquez and
+ * Enrriques both become "enrikes".
+ * @param word - One word of a name, lowercase, without accents.
+ * @returns How it sounds.
+ */
+export function spanishSound(word: string): string {
+  return word
+    .replace(/ch/g, "#").replace(/^h/, "").replace(/h/g, "")
+    .replace(/qu/g, "k").replace(/c([eiy])/g, "s$1").replace(/c/g, "k").replace(/z/g, "s")
+    .replace(/v/g, "b").replace(/w/g, "gu").replace(/ll/g, "y").replace(/g([ei])/g, "j$1").replace(/x/g, "j")
+    .replace(/^y([^aeiou])/, "i$1").replace(/y$/, "i")
+    .replace(/(.)\1+/g, "$1").replace(/#/g, "ch");
 }
 
 /** Score for two words that sound alike by their sound codes but are spelled further apart. */
@@ -152,6 +182,8 @@ function wordSimilarity(a: string, b: string): number {
   const groups = variantsByName().get(a);
   if (groups && variantsByName().get(b)?.some((group) => groups.includes(group))) return 100;
   if (a.length === 1 || b.length === 1) return a[0] === b[0] ? 80 : 0;
+  // In Chile, letters that sound the same were written either way: González and Gonzales, Vargas and Bargas
+  if (CHILE && spanishSound(a) === spanishSound(b)) return SPANISH_SPELLING_SCORE;
   const score = 0.6 * spellingRatio(a, b) + 0.4 * spellingRatio(consonantOutline(a), consonantOutline(b));
   const sound = soundCode(a);
   return sound && sound === soundCode(b) ? Math.max(score, SOUNDS_ALIKE_SCORE) : score;
@@ -266,6 +298,8 @@ const BORDER_GROUPS: string[][] = [
  */
 function placeParts(place: string): string[] {
   if (PLACEHOLDER_PLACES.test(place.trim())) return [];
+  // In Chile accents are often left off (Concepción, Concepcion), and regions written several ways
+  if (CHILE) place = place.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['\u2019]/g, "");
   const parts = place
     .toLowerCase()
     .replace(/[.]/g, "")
@@ -275,16 +309,122 @@ function placeParts(place: string): string[] {
     // "Lucas County" and "Lucas" are the same county
     .map((part) => part.replace(/\s+(county|co|parish)$/, ""))
     // Census wards, districts and precincts name a part of town, not a different place
-    .filter((part) => part !== "" && !CENSUS_SUBDIVISION.test(part))
+    .filter((part) => /\p{L}/u.test(part) && !CENSUS_SUBDIVISION.test(part))
     // "Massachusetts Bay Colony" and "Connecticut Colony" are the states
     .map((part) => part.replace(/(\s+bay)?\s+colony$/, ""))
     .map(withoutTownSuffix)
+    .map((part) => (CHILE ? chileRegionName(part) : part))
     .map((part) => PLACE_ALIASES[part] ?? part);
   const last = parts[parts.length - 1] ?? "";
+  // "Talca, Maule" and a lone "Curicó" are in Chile even when the country isn't written
+  if (CHILE && last !== "chile" && (CHILE_REGION_OF[last] || CHILE_COMMUNE_REGION[last]) && !COUNTRIES.has(last)) return [...parts, "chile"];
   // "Buffalo, New York" is in the United States even when the country isn't written, and "Glasgow, Scotland" in the United Kingdom
   if (US_STATES.has(last)) return [...parts, "united states"];
   if (UK_NATIONS.has(last)) return [...parts, "united kingdom"];
   return parts;
+}
+
+/**
+ * Writes a Chilean region one way: "Región del Maule" and "Maule" are "maule", "Región Metropolitana de Santiago" is
+ * "metropolitana", "Bío-Bío" is "biobio". Only whole region names change; a commune or province named like a region
+ * (Santiago, Valparaíso) stays as it is.
+ * @param part - One cleaned place part, without accents.
+ * @returns The part, with a region in its one spelling.
+ */
+function chileRegionName(part: string): string {
+  const bare = part.replace(/^(xv|xiv|xiii|xii|xi|x|ix|viii|vii|vi|v|iv|iii|ii|i|\d+)\s+region\s+/, "")
+    .replace(/^region\s+(de\s+la\s+|de\s+los\s+|del\s+|de\s+)?/, "").replace(/-/g, " ");
+  return CHILE_REGION_SPELLINGS[bare] ?? (bare !== part ? bare : part);
+}
+
+/** Region names written more than one way, in their one spelling. */
+const CHILE_REGION_SPELLINGS: Record<string, string> = {
+  "metropolitana de santiago": "metropolitana", "santiago metropolitan": "metropolitana", "rm": "metropolitana",
+  "bio bio": "biobio", "bio-bio": "biobio", "del biobio": "biobio",
+  "libertador general bernardo ohiggins": "ohiggins", "libertador bernardo ohiggins": "ohiggins", "o higgins": "ohiggins",
+  "la araucania": "araucania", "aysen del general carlos ibanez del campo": "aysen", "aisen": "aysen",
+  "aisen del general carlos ibanez del campo": "aysen", "magallanes y de la antartica chilena": "magallanes",
+  "magallanes y antartica chilena": "magallanes", "republica de chile": "chile",
+};
+
+/**
+ * The region each Chilean region, and each province of the old (before 1974) and new maps, is in. Records name the
+ * old provinces (Ñuble, Cautín, Colchagua), the tree the regions of today.
+ */
+const CHILE_REGION_OF: Record<string, string> = Object.fromEntries(Object.entries({
+  "arica y parinacota": ["arica y parinacota", "arica", "parinacota"],
+  tarapaca: ["tarapaca", "iquique", "tamarugal"],
+  antofagasta: ["antofagasta", "tocopilla", "el loa", "loa"],
+  atacama: ["atacama", "copiapo", "chanaral", "huasco"],
+  coquimbo: ["coquimbo", "elqui", "limari", "choapa"],
+  valparaiso: ["valparaiso", "aconcagua", "los andes", "san felipe de aconcagua", "quillota", "petorca", "san antonio", "marga marga", "isla de pascua"],
+  metropolitana: ["metropolitana", "santiago", "cordillera", "chacabuco", "maipo", "talagante", "melipilla"],
+  ohiggins: ["ohiggins", "cachapoal", "colchagua", "cardenal caro"],
+  maule: ["maule", "talca", "curico", "linares", "cauquenes"],
+  nuble: ["nuble", "diguillin", "itata", "punilla"],
+  biobio: ["biobio", "concepcion", "arauco"],
+  araucania: ["araucania", "cautin", "malleco"],
+  "los rios": ["los rios", "valdivia", "ranco"],
+  "los lagos": ["los lagos", "llanquihue", "osorno", "chiloe", "palena"],
+  aysen: ["aysen", "coyhaique", "capitan prat", "general carrera"],
+  magallanes: ["magallanes", "ultima esperanza", "tierra del fuego", "antartica chilena"],
+}).flatMap(([region, names]) => names.map((name) => [name, region])));
+
+/** How each region is written for people. */
+const CHILE_REGION_DISPLAY: Record<string, string> = {
+  "arica y parinacota": "Arica y Parinacota", tarapaca: "Tarapacá", antofagasta: "Antofagasta", atacama: "Atacama",
+  coquimbo: "Coquimbo", valparaiso: "Valparaíso", metropolitana: "Región Metropolitana", ohiggins: "O’Higgins",
+  maule: "Maule", nuble: "Ñuble", biobio: "Biobío", araucania: "La Araucanía", "los rios": "Los Ríos",
+  "los lagos": "Los Lagos", aysen: "Aysén", magallanes: "Magallanes",
+};
+
+/**
+ * Regions made from part of another in living memory: Ñuble from Biobío (2018), Los Ríos from Los Lagos and Arica y
+ * Parinacota from Tarapacá (2007). The same town can be written in either.
+ */
+const CHILE_SPLIT_REGIONS = [["nuble", "biobio"], ["los rios", "los lagos"], ["arica y parinacota", "tarapaca"]];
+
+/**
+ * Finds a Chilean place's region and commune: the region from the largest part that names one, the commune from
+ * the smallest part when there's more than a region.
+ * @param parts - The place's cleaned parts, ending in "chile".
+ * @returns The region and commune, when the place names them.
+ */
+function chilePlace(parts: string[]): { region?: string; commune?: string } {
+  const inside = parts.slice(0, -1);
+  let region: string | undefined;
+  for (let i = inside.length - 1; i >= 0 && !region; i--) region = CHILE_REGION_OF[inside[i]];
+  // A place naming only a commune ("Curicó, Chile") is in the commune's region
+  for (let i = 0; i < inside.length && !region; i++) region = CHILE_COMMUNE_REGION[inside[i].replace(/-/g, " ")];
+  // A lone part is a commune unless it names a region: "Curicó, Chile" is the commune, "Maule, Chile" the region
+  const commune = inside.length >= 2 || (inside.length === 1 && !CHILE_REGION_DISPLAY[inside[0]]) ? inside[0] : undefined;
+  return { region, commune };
+}
+
+/**
+ * Compares two places in Chile that aren't the same and where neither only adds detail to the other: a different
+ * region is a conflict, unless the region was split from the other; a different commune in one region is worth a
+ * look, at the same time.
+ * @param a - Parts of one place, ending in "chile".
+ * @param b - Parts of the other.
+ * @param sameTime - Whether both are from the same time; a move between years isn't a conflict.
+ * @returns The highlight and why.
+ */
+function scoreChilePlace(a: string[], b: string[], sameTime: boolean): Scored {
+  const pa = chilePlace(a);
+  const pb = chilePlace(b);
+  if (pa.region && pb.region && pa.region !== pb.region) {
+    if (CHILE_SPLIT_REGIONS.some((pair) => pair.includes(pa.region!) && pair.includes(pb.region!))) {
+      return { highlight: HighlightType.Yellow, reason: "Border changed" };
+    }
+    return sameTime ? { highlight: HighlightType.Red, reason: "Different regions" } : { highlight: HighlightType.None };
+  }
+  const region = pa.region ?? pb.region;
+  if (pa.commune && pb.commune && pa.commune !== pb.commune) {
+    if (!sameTime) return { highlight: HighlightType.None };
+    return { highlight: HighlightType.Yellow, reason: pa.region && pb.region ? "Same region" : "Different places" };
+  }
+  return region ? { highlight: HighlightType.Green, reason: `Both in ${CHILE_REGION_DISPLAY[region]}` } : { highlight: HighlightType.Yellow, reason: "Same country" };
 }
 
 /** Names whose "City" is part of the name, not a census label: Salt Lake City isn't Salt Lake County. */
@@ -417,7 +557,8 @@ function titleCase(part: string = ""): string {
  */
 function sharedArea(a: string[], b: string[]): string {
   const all = a.length <= b.length ? a : b;
-  const shorter = all.filter((part) => part !== "united states" && part !== "united kingdom");
+  const shorter = all.filter((part) => part !== "united states" && part !== "united kingdom" && !(CHILE && part === "chile"));
+  if (CHILE && shorter.length === 0) return "Both in Chile";
   if (shorter.length === 0) return `Both in the ${titleCase(all[all.length - 1])}`;
   return `Both in ${shorter.slice(-2).map(titleCase).join(", ")}`;
 }
@@ -439,6 +580,7 @@ export function scorePlace(recordPlace: string = "", treePlace: string = ""): Sc
 
   const countryA = a[a.length - 1];
   const countryB = b[b.length - 1];
+  if (CHILE && countryA === "chile" && countryB === "chile") return scoreChilePlace(a, b, true);
   // A lone "Springfield" could be in any country, so it can't conflict with one
   const unknownA = a.length === 1 && !COUNTRIES.has(countryA);
   const unknownB = b.length === 1 && !COUNTRIES.has(countryB);
@@ -496,6 +638,7 @@ export function scoreResidence(recordPlace: string = "", treePlace: string = "",
   if (a.join(",") === b.join(",")) return { highlight: HighlightType.Green };
   if (isMoreSpecific(a, b)) return { highlight: HighlightType.Green, reason: sharedArea(a, b) };
 
+  if (CHILE && a[a.length - 1] === "chile" && b[b.length - 1] === "chile") return scoreChilePlace(a, b, sameTime);
   // A lone "Springfield" has no state to compare
   if ((a.length === 1 && !COUNTRIES.has(a[0])) || (b.length === 1 && !COUNTRIES.has(b[0]))) {
     return sameTime ? { highlight: HighlightType.Yellow, reason: "Different places" } : { highlight: HighlightType.None };
@@ -550,8 +693,52 @@ const COMMON_SURNAMES = new Set([
  */
 function isCommonName(given: string, surname: string): boolean {
   const parts = givenParts(given);
+  if (CHILE) {
+    // Both surnames together narrow it down; one alone doesn't
+    const { own } = chileSurname(surname);
+    return parts.length === 1 && COMMON_GIVEN_CL.has(nameWords(parts[0]).join("")) && own.length === 1 && COMMON_SURNAMES_CL.has(own[0]);
+  }
   return parts.length === 1 && COMMON_GIVEN.has(parts[0]) && COMMON_SURNAMES.has(surname.trim().toLowerCase());
 }
+
+/** Very common given names in Chile's records, without accents. */
+const COMMON_GIVEN_CL = new Set([
+  "juan", "jose", "luis", "carlos", "manuel", "pedro", "francisco", "jorge", "mario", "sergio", "segundo", "miguel",
+  "antonio", "pablo", "hector", "raul", "ramon", "victor", "domingo", "alberto",
+  "maria", "rosa", "ana", "carmen", "juana", "teresa", "luisa", "elena", "margarita", "laura", "mercedes", "olga",
+]);
+
+/** Common Spanish surnames of Mexico and the US Southwest, beyond Chile's, without accents. */
+const SPANISH_SURNAMES = new Set([
+  "garcia", "hernandez", "martinez", "lopez", "gonzalez", "rodriguez", "perez", "sanchez", "ramirez", "torres",
+  "flores", "rivera", "gomez", "diaz", "cruz", "morales", "reyes", "gutierrez", "ortiz", "chavez", "ruiz", "jimenez",
+  "mendoza", "alvarez", "castillo", "romero", "moreno", "vasquez", "vazquez", "herrera", "medina", "aguilar",
+  "vargas", "garza", "castro", "guzman", "salazar", "ramos", "delgado", "trevino", "villarreal", "cantu", "salinas",
+  "padilla", "montoya", "baca", "lucero", "sandoval", "archuleta", "maestas", "trujillo", "gallegos", "chacon",
+  "valdez", "dominguez", "espinoza", "soto", "contreras", "rojas", "silva", "munoz", "fuentes", "navarro", "luna",
+  "acosta", "molina", "rios", "mejia", "estrada", "cortez", "cortes", "guerrero", "ochoa", "zamora", "zuniga",
+]);
+
+/**
+ * Checks whether a surname looks Spanish, so Spanish naming rules apply to it outside Chile too: two surnames,
+ * and spellings of one sound (Rodriquez and Rodríguez).
+ * @param surname - A surname as written.
+ * @returns True when one of its words is a common Spanish surname or ends in "ez".
+ */
+function looksSpanish(surname: string): boolean {
+  return nameWords(surname).some((word) => SPANISH_SURNAMES.has(word) || COMMON_SURNAMES_CL.has(word) || (word.length >= 5 && word.endsWith("ez")));
+}
+
+/** The most common surnames in Chile, without accents. */
+const COMMON_SURNAMES_CL = new Set([
+  "gonzalez", "munoz", "rojas", "diaz", "perez", "soto", "contreras", "silva", "martinez", "sepulveda", "morales",
+  "rodriguez", "lopez", "fuentes", "hernandez", "torres", "araya", "flores", "espinoza", "valenzuela", "castillo",
+  "tapia", "reyes", "gutierrez", "castro", "pizarro", "alvarez", "vasquez", "sanchez", "fernandez", "ramirez",
+  "carrasco", "gomez", "cortes", "herrera", "nunez", "jara", "vergara", "rivera", "figueroa", "riquelme", "garcia",
+  "miranda", "bravo", "vera", "molina", "vega", "campos", "sandoval", "orellana", "zuniga", "olivares", "alarcon",
+  "gallardo", "ortiz", "garrido", "salazar", "guzman", "henriquez", "saavedra", "navarro", "aguilera", "parra",
+  "romero", "aravena", "vargas",
+]);
 
 /**
  * Daitch–Mokotoff Soundex rules, simplified to one code per rule: [letters, at the start, before a vowel, anywhere else].
@@ -623,7 +810,111 @@ const SAME_SURNAME_SCORE = 81;
  * @returns The parts, without punctuation.
  */
 function givenParts(name: string): string[] {
-  return name.toLowerCase().replace(/[.,]/g, " ").split(/\s+/).filter(Boolean);
+  const parts = name.toLowerCase().replace(/[.,]/g, " ").split(/\s+/).filter(Boolean);
+  // "María del Carmen" and "Juan de Dios" are two names, with "del" and "de" only joining them
+  return CHILE ? parts.filter((part) => !NAME_PARTICLES.has(part)) : parts;
+}
+
+/** Words that join Spanish names and surnames without being one: María del Carmen, Pérez y Soto, de la Fuente. */
+const NAME_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "e"]);
+
+/** A Chilean surname: the person's own (the father's, then the mother's), and a husband's, if written after "de". */
+interface ChileSurname {
+  own: string[];
+  husband?: string;
+}
+
+/**
+ * Reads a Chilean surname. Chileans carry two: the father's first, then the mother's ("González Pérez"). A married
+ * woman was often written with "de" and her husband's ("Pérez de Soto"), or as a widow "viuda de Soto".
+ * "De la Fuente" and "del Río" are surnames of their own.
+ * @param surname - The surname as written.
+ * @param female - Whether the person may be a woman, and so written with a husband's surname.
+ * @returns Her or his own surnames, and a husband's surname if one is written.
+ */
+function chileSurname(surname: string, female: boolean = true): ChileSurname {
+  // "i" joins surnames as "y" does: "Pizarro i Cisternas"
+  const words = nameWords(surname).filter((word, i, all) => !(word === "i" && i > 0 && i < all.length - 1));
+  const own: string[] = [];
+  let husband: string | undefined;
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const next = words[i + 1];
+    // "viuda de Soto", "vda de Soto"
+    if ((word === "viuda" || word === "vda" || word === "vda.") && next === "de") {
+      husband = words.slice(i + 2).filter((w) => !NAME_PARTICLES.has(w))[0];
+      break;
+    }
+    // "Pérez de Soto": "de" after her own surname, not "de la"/"del", names the husband. A man's "Pérez de Arce" is
+    // one surname.
+    if (female && word === "de" && own.length > 0 && next && !["la", "las", "los"].includes(next)) {
+      husband = words.slice(i + 1).filter((w) => !NAME_PARTICLES.has(w))[0];
+      break;
+    }
+    if (!NAME_PARTICLES.has(word)) own.push(word);
+  }
+  return { own, husband };
+}
+
+/** How two Chilean surnames compare, worked out part by part. */
+interface ChileSurnameMatch {
+  /** Both name the same family: the same father's surname, and the same mother's surname where both give one. */
+  same: boolean;
+  /** Close enough to look at: spelled alike, or only partly the same. */
+  close: boolean;
+  /** Why they're only partly the same: shown in yellow. */
+  partly?: string;
+  /** A note under a match, like a second surname written on only one side. */
+  note?: string;
+  /** The side a note is about. */
+  side?: "record" | "tree";
+}
+
+/**
+ * Checks whether two surname words are one surname: the same, spelled the way it sounds (Gonzales and González), or
+ * nearly the same spelling.
+ * @param a - One surname word.
+ * @param b - The other.
+ * @returns True when they're one surname.
+ */
+function sameSurnameWord(a: string, b: string): boolean {
+  return a === b || spanishSound(a) === spanishSound(b) || getNameComparisonConfidence(a, b) >= SAME_SURNAME_SCORE;
+}
+
+/**
+ * Compares two Chilean surnames: the father's surnames first, then the mother's. One side often gives only the
+ * father's surname, which is no conflict. The same father's surname with a different mother's is worth a look, as
+ * are surnames in the other order, the mother's surname alone, or a married name.
+ * @param recordLast - The surname on one side.
+ * @param treeLast - The surname on the other side.
+ * @param male - Whether the person is a man, who is never written with a wife's surname.
+ * @returns How they compare.
+ */
+function compareChileSurnames(recordLast: string, treeLast: string, male: boolean): ChileSurnameMatch {
+  const a = chileSurname(recordLast, !male);
+  const b = chileSurname(treeLast, !male);
+  const [a1, a2] = a.own;
+  const [b1, b2] = b.own;
+  const plainlyEqual = a.own.join(" ") === b.own.join(" ");
+  if (a1 && b1 && sameSurnameWord(a1, b1)) {
+    if (a2 && b2 && !sameSurnameWord(a2, b2)) return { same: false, close: true, partly: "Different second surname" };
+    if (Boolean(a.husband) !== Boolean(b.husband)) return { same: true, close: true, note: "Married name added", side: a.husband ? "record" : "tree" };
+    if (Boolean(a2) !== Boolean(b2)) return { same: true, close: true, note: "Second surname on one side only", side: a2 ? "tree" : "record" };
+    return { same: true, close: true, note: plainlyEqual ? undefined : "Spelled differently" };
+  }
+  if (a1 && b1 && a2 && b2 && sameSurnameWord(a1, b2) && sameSurnameWord(a2, b1)) {
+    return { same: false, close: true, partly: "Surnames in a different order" };
+  }
+  // One side gives only the mother's surname
+  if ((a2 && b1 && !b2 && sameSurnameWord(a2, b1)) || (b2 && a1 && !a2 && sameSurnameWord(b2, a1))) {
+    return { same: false, close: true, partly: "Only the mother’s surname" };
+  }
+  // Her own surname on one side, her husband's on the other
+  if ((a.husband && b1 && sameSurnameWord(a.husband, b1)) || (b.husband && a1 && sameSurnameWord(b.husband, a1))) {
+    return { same: false, close: true, partly: "Married name" };
+  }
+  const score = a1 && b1 ? getNameComparisonConfidence(a1, b1) : 0;
+  return { same: false, close: score >= 60 || (Boolean(a1 && b1) && soundCode(a1) !== "" && soundCode(a1) === soundCode(b1)) };
 }
 
 /** Each name in the app's nickname lists, with the numbers of the lists it's in. */
@@ -712,11 +1003,15 @@ export function scoreName(
   const middleSame = middlesAgree(middleA, middleB);
 
   const surnameScore = isBlank(recordLast) || isBlank(treeLast) ? 100 : getNameComparisonConfidence(recordLast, treeLast);
+  // In Chile, and for Spanish surnames anywhere, each side may give one or two surnames, the father's and the
+  // mother's, compared one by one. Outside Chile "de" is read as part of a surname (De León), not a husband's.
+  const spanish = !isBlank(recordLast) && !isBlank(treeLast) && (CHILE || looksSpanish(recordLast) || looksSpanish(treeLast));
+  const chile = spanish ? compareChileSurnames(recordLast, treeLast, !CHILE || gender.toLowerCase() === "male") : undefined;
   // Very close spellings ("Silberstein" and "Silverstein") are the same surname written differently
-  const surnameSame = surnameScore >= SAME_SURNAME_SCORE;
+  const surnameSame = chile ? chile.same : surnameScore >= SAME_SURNAME_SCORE;
   // Surnames that sound alike ("Lio" and "Leo") are close even when the spelling score is low
   const soundsAlike = !isBlank(recordLast) && !isBlank(treeLast) && soundCode(recordLast) !== "" && soundCode(recordLast) === soundCode(treeLast);
-  const surnameClose = surnameScore >= 60 || soundsAlike;
+  const surnameClose = chile ? chile.close : surnameScore >= 60 || soundsAlike;
   const female = gender.toLowerCase() === "female";
 
   if (firstSame || firstInitial) {
@@ -724,11 +1019,14 @@ export function scoreName(
     if (isBlank(recordLast) !== isBlank(treeLast)) {
       return { highlight: HighlightType.Yellow, reason: "Surname missing", side: isBlank(recordLast) ? "record" : "tree" };
     }
+    // Partly the same Chilean surnames: the father's but not the mother's, swapped, or a married name
+    if (chile?.partly) return { highlight: HighlightType.Yellow, reason: chile.partly };
     if (surnameSame) {
       if (!middleSame) return { highlight: HighlightType.Yellow, reason: "Different middle name" };
       if (firstInitial) return { highlight: HighlightType.Yellow, reason: "Only an initial" };
       // Said under the name, so a green check beside two spellings doesn't look like a mistake
       if (firstA !== firstB) return { highlight: HighlightType.Green, reason: "Same name, written differently" };
+      if (chile) return chile.note ? { highlight: HighlightType.Green, reason: chile.note, side: chile.side } : { highlight: HighlightType.Green };
       return nameWords(recordLast).join("") !== nameWords(treeLast).join("")
         ? { highlight: HighlightType.Green, reason: "Spelled differently" }
         : { highlight: HighlightType.Green };

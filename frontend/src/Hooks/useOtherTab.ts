@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { CHILE } from "../Services/region";
 import { v4 } from "uuid";
 import { usingSheets } from "../Services/sheetsApi";
 
-const TAB_KEY = "powerlinker.tab";
+// The Chilean site, on the same address, keeps its own, so opening it doesn't pause an English tab
+const TAB_KEY = CHILE ? "powerlinker.tab.cl" : "powerlinker.tab";
 
 /**
  * Notices when the app is opened in another tab of this browser. Both tabs would start from the same saved place
