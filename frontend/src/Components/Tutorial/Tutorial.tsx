@@ -93,7 +93,7 @@ const CARDS: ReactNode[] = [
       <Rows rows={[
         ["Nombre", "José González", "José González Pérez", "ok", "Solo un lado tiene el apellido materno"],
         ["Nombre", "José Pérez", "José González Pérez", "close", "Solo el apellido materno"],
-        ["Nombre", "María Soto", "María Pérez de Soto", "close", "«de Soto»: casada con un Soto"],
+        ["Nombre", "María Soto", "María Pérez de Soto", "close", "“de Soto”: casada con un Soto"],
       ]} />
     </div>,
   ] : []),

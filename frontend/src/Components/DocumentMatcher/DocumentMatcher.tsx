@@ -155,7 +155,27 @@ function shortName(person: IPerson): string {
  * @returns For example "la fecha de nacimiento ni el lugar de nacimiento".
  */
 function spanishFacts(facts: readonly string[]): string {
-  return facts.length > 1 ? "la fecha ni el lugar de nacimiento" : facts[0] === "birth date" ? "la fecha de nacimiento" : "el lugar de nacimiento";
+  return facts.length > 1 ? "la fecha y el lugar de nacimiento" : facts[0] === "birth date" ? "la fecha de nacimiento" : "el lugar de nacimiento";
+}
+
+/**
+ * Puts the Spanish article before each relative and joins them: "madre Celia" and "padre" become "la madre Celia y el
+ * padre".
+ * @param relatives - Relatives as shown, each starting with the relationship, such as "madre Celia".
+ * @returns The list with articles.
+ */
+function withArticle(relatives: string[]): string {
+  const words = relatives.map((relative) => `${/^(madre|esposa|hija|hermana)\b/.test(relative) ? "la" : "el"} ${relative}`);
+  return words.length > 1 ? `${words.slice(0, -1).join(", ")} y ${words[words.length - 1]}` : words[0] ?? "";
+}
+
+/**
+ * Starts a sentence with a capital letter.
+ * @param text - The sentence.
+ * @returns It with its first letter capitalized.
+ */
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** Relationships that have a man's and a woman's word, which read better in Spanish than "cónyuge" or "hijo o hija". */
@@ -240,7 +260,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       setCheckReview({
         expected,
         facts: reviewFacts(expected, people),
-        sameFamily: familyAgreement.length > 0 ? listNames(familyAgreement.map((relative) => relative.who)) : undefined,
+        sameFamily: familyAgreement.length > 0 ? listNames(familyNames) : undefined,
         conflicts: conflictCount,
         streakLost: context.streak > 0,
         sides: isDuplicate ? ["Person 1", "Person 2"] : ["Record", "Tree"],
@@ -536,6 +556,8 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     });
   }, [isDuplicate, matches, people]);
   // In Chile most places say only "Chile", so parents tell people apart best: one matching parent is enough
+  // The same relative listed twice on the tree ("esposo Marcelino y esposo Marcelino") is named once
+  const familyNames = [...new Set(familyAgreement.map((relative) => relative.who))];
   const familyAgrees = familyAgreement.length >= 2 || familyAgreement.some((relative) => relative.linked || (CHILE && relative.parent));
   // Parents both sides name, with names that don't match. On the Chilean site they're shown above the table and
   // count as conflicts, since there the family decides more than dates and places.
@@ -576,6 +598,10 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
       return { who, url, facts };
     }).filter((missing) => missing.facts.length > 0 && missing.url);
   }, [people, isDuplicate, hint?.url, matches]);
+
+  // The facts both people lack, when they lack the same ones, so the two notes can be one
+  const sameMissing = missingVitals.length === 2 && missingVitals.every((missing) => missing.who)
+    && missingVitals[0].facts.join() === missingVitals[1].facts.join() ? missingVitals[0].facts : undefined;
 
   // Conflicting rows that are below the visible area, for the "conflicts below" bubble
   const [conflictsBelow, setConflictsBelow] = useState<HTMLElement[]>([]);
@@ -711,14 +737,32 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                   </span>
                 )}
               </div>
-              {missingVitals.map(({ who, url, facts }) => (
+              {/* Both people missing the same facts: one note with a link to each page */}
+              {sameMissing ? (
+                <p className="source-tip" role="note">
+                  <span className="source-tip-icon" aria-hidden="true">i</span>
+                  <span>
+                    {CHILE
+                      ? <>{sameMissing.length > 1 ? "Faltan" : "Falta"} {spanishFacts(sameMissing)} de las dos personas.{" "}</>
+                      : <>No {sameMissing.join(" or ")} for either person here.{" "}</>}
+                    {missingVitals.map(({ who, url }, i) => (
+                      <span key={who}>
+                        {i > 0 && " · "}
+                        <a className="source-tip-link" href={inSiteLanguage(url)} target="_blank" rel="noopener noreferrer" onClick={() => setSourceOpened(true)}>
+                          {say(who ?? "")} ↗
+                        </a>
+                      </span>
+                    ))}
+                  </span>
+                </p>
+              ) : missingVitals.map(({ who, url, facts }) => (
                 <p className="source-tip" role="note" key={who ?? "record"}>
                   <span className="source-tip-icon" aria-hidden="true">i</span>
                   <span>
                     {CHILE
                       ? who
-                        ? <>Aquí no {facts.length > 1 ? "aparecen" : "aparece"} {spanishFacts(facts)} de {say(who)}. {facts.length > 1 ? "Pueden" : "Puede"} estar en su página del árbol.{" "}</>
-                        : <>Aquí no {facts.length > 1 ? "aparecen" : "aparece"} {spanishFacts(facts)}. {facts.length > 1 ? "Pueden" : "Puede"} estar en el registro original.{" "}</>
+                        ? <>{facts.length > 1 ? "Faltan" : "Falta"} {spanishFacts(facts)} de {say(who)}.{" "}</>
+                        : <>{facts.length > 1 ? "Faltan" : "Falta"} {spanishFacts(facts)}; puede estar en el registro original.{" "}</>
                       : who
                         ? <>No {facts.join(" or ")} for {who} here. Their tree page may have {facts.length > 1 ? "them" : "it"}.{" "}</>
                         : <>No {facts.join(" or ")} shown here. The original record may have {facts.length > 1 ? "them" : "it"}.{" "}</>}
@@ -744,22 +788,30 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
                     : <span><b>{who === "The record" ? "The record’s" : `${who}’s`} own facts disagree:</b> {problem}. One of those is probably wrong, so don’t count it against a match.</span>}
                 </p>
               ))}
+              {/* Chilean site: one family line. Parents who don't match, and in the same line any relative who does. */}
               {parentConflicts.length > 0 && (
                 <p className="source-tip self-conflict" role="note">
                   <span className="source-tip-icon self-conflict-icon" aria-hidden="true">!</span>
                   <span>
-                    <b>Padres distintos:</b> {parentConflicts.map((person) => `${say(person.heading.toLowerCase())} ${person.rows[0].record ?? ""} · ${person.rows[0].tree ?? ""}`).join("; ")}.
-                    {" "}Los nombres de los padres pesan más que una fecha o un lugar.
+                    <b>
+                      {familyAgreement.length > 0 && `${capitalize(withArticle(familyNames))} ${familyNames.length > 1 ? "coinciden" : "coincide"}, pero `}
+                      {(() => {
+                        const who = withArticle(parentConflicts.map((person) => say(person.heading.toLowerCase())));
+                        const verb = parentConflicts.length > 1 ? "no coinciden" : "no coincide";
+                        return familyAgreement.length > 0 ? `${who} no:` : `${capitalize(who)} ${verb}:`;
+                      })()}
+                    </b>
+                    {" "}{parentConflicts.map((person) => `${person.rows[0].record ?? ""} · ${person.rows[0].tree ?? ""}`).join("; ")}.
                   </span>
                 </p>
               )}
               {/* Matching family sits below the main table, so it's called out up here; the other clues show in the table */}
-              {familyAgrees && (
+              {familyAgrees && parentConflicts.length === 0 && (
                 <div className="source-tip clue-note" role="note">
                   <span className="source-tip-icon clue-note-icon" aria-hidden="true">✓</span>
                   <div>
-                    <b>{tr("Same family:", "Misma familia:")}</b> {listNames(familyAgreement.map((relative) => relative.who))}
-                    {mainDiffers && !onlyDeathsDiffer && (
+                    <b>{tr("Same family:", "Misma familia:")}</b> {listNames(familyNames)}
+                    {mainDiffers && !onlyDeathsDiffer && !CHILE && (
                       <p className="clue-weight">{tr("Stronger evidence than a date or place that’s off.", "Esto pesa más que una fecha o un lugar que no coincida.")}</p>
                     )}
                   </div>

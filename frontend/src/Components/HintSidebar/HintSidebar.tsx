@@ -149,11 +149,11 @@ function HowToDecide(): ReactElement {
       {CHILE ? (
         <ul className="help-list">
           <li><b>Dos apellidos.</b> Primero va el del padre y luego el de la madre. Muchos registros antiguos traen solo el paterno, y eso no es una diferencia.</li>
-          <li><b>Las mujeres conservaban su apellido.</b> «Pérez de Soto» quiere decir casada con un Soto, no que se llamara Soto.</li>
-          <li><b>Muchos usaban su segundo nombre.</b> «María del Carmen» puede aparecer solo como «Carmen».</li>
+          <li><b>Las mujeres conservaban su apellido.</b> “Pérez de Soto” quiere decir casada con un Soto, no que se llamara Soto.</li>
+          <li><b>Muchos usaban su segundo nombre.</b> “María del Carmen” puede aparecer solo como “Carmen”.</li>
           <li><b>Hijos naturales.</b> Un hijo de padres no casados puede llevar solo los apellidos de la madre.</li>
-          <li><b>«Segundo» y «Tercero» son nombres,</b> no números.</li>
-          <li><b>Mira la familia.</b> Muchos lugares dicen solo «Chile», así que los nombres de los padres suelen decidir más que las fechas.</li>
+          <li><b>“Segundo” y “Tercero” son nombres,</b> no números.</li>
+          <li><b>Mira la familia.</b> Muchos lugares dicen solo “Chile”, así que los nombres de los padres suelen decidir más que las fechas.</li>
           <li><b>¿Tienes dudas? Elige No sé.</b> Siempre es mejor que adivinar.</li>
         </ul>
       ) : (
