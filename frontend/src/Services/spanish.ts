@@ -184,7 +184,6 @@ const PATTERNS: [RegExp, (match: RegExpMatchArray) => string][] = [
   [/^Same small town( \(~[\d,]+\))?$/, (m) => `Mismo pueblo pequeño${m[1] ?? ""}`],
   [/^Same town: (.+)$/, (m) => `Misma localidad: ${m[1]}`],
   [/^About (\d+) km apart$/, (m) => `A unos ${m[1]} km`],
-  [/^(\d+)–(\d+) km apart$/, (m) => `Entre ${m[1]} y ${m[2]} km`],
   [/^(.+) is her married name$/, (m) => `${m[1]} es su apellido de casada`],
   // A row named after an event type compareRows doesn't list, such as "Immigration place"
   [/^(.+) place$/, (m) => `Lugar de ${(EXACT[m[1]] ?? m[1]).toLowerCase()}`],

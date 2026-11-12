@@ -555,8 +555,6 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
 
 /** Places this close or closer (about 50 miles) show how far apart they are; further apart, the distance adds little. */
 const CLOSE_KM = 80;
-/** A range wider than this (in miles, or km in Chile) says too little to show: "4–63 mi apart". */
-const WIDEST_RANGE = 30;
 /** Places in different regions or states this close are neighbors across a line, not a conflict: worth a look. */
 const BORDER_KM = CHILE ? 80 : 40;
 
@@ -585,17 +583,15 @@ function withPlaceDetail(row: CompareRow): CompareRow {
   // A row that already matches needs no distance; nor do two districts of one city ("Same town: Chicago")
   if (row.status === "ok" || row.reason?.startsWith("Same town: ")) return row;
   const km = distanceKm(a, b);
-  // A place that's a whole county ("Scott, Kentucky") could be anywhere in it, so the distance is a range
+  // A place that's a whole county ("Scott, Kentucky") is measured from its center, and could be anywhere within its
+  // radius of it
   const spread = (a?.radiusKm ?? 0) + (b?.radiusKm ?? 0);
   if (km === undefined || km - spread > CLOSE_KM || (spread === 0 && km < 1)) return row;
   const unit = CHILE ? 1 : 1.609;
-  const near = Math.round(Math.max(0, km - spread) / unit);
-  const far = Math.max(1, Math.round((km + spread) / unit));
   const label = CHILE ? "km" : "mi";
-  // When one place could be inside the other ("Davidson, Tennessee" and Nashville in it), a distance says nothing new,
-  // and a very wide range says too little
-  if (spread >= 5 && (near < 1 || far - near > WIDEST_RANGE)) return row;
-  const apart = spread < 5 ? `About ${Math.max(1, Math.round(km / unit))} ${label} apart` : `${near}–${far} ${label} apart`;
+  // When one place could be inside the other ("Davidson, Tennessee" and Nashville in it), a distance says nothing new
+  if (spread >= 5 && km - spread < unit) return row;
+  const apart = `About ${Math.max(1, Math.round(km / unit))} ${label} apart`;
   // With a distance, "Moved or a different person" and "Both in Wayne, Michigan" go without saying
   const base = row.reason === "Moved or a different person" || row.reason?.startsWith("Both in ") ? undefined : row.reason;
   // Neighbors across a region or state line ("Different regions", 63 km apart) are worth a look, not a conflict
