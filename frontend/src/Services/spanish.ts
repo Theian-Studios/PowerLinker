@@ -181,7 +181,7 @@ const PATTERNS: [RegExp, (match: RegExpMatchArray) => string][] = [
   // Places, from highlightScoring and compareRows
   [/^Both in the (.+)$/, (m) => `Ambos en ${COUNTRIES[m[1]] ?? m[1]}`],
   [/^Both in (.+)$/, (m) => `Ambos en ${m[1]}`],
-  [/^Same small town: (.+)$/, (m) => `Mismo pueblo pequeño: ${m[1]}`],
+  [/^Same small town( \(~[\d,]+\))?$/, (m) => `Mismo pueblo pequeño${m[1] ?? ""}`],
   [/^Same town: (.+)$/, (m) => `Misma localidad: ${m[1]}`],
   [/^About (\d+) km apart$/, (m) => `A unos ${m[1]} km`],
   [/^(\d+)–(\d+) km apart$/, (m) => `Entre ${m[1]} y ${m[2]} km`],

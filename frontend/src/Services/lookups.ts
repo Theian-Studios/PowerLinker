@@ -134,6 +134,20 @@ export function placeInfo(place: string | undefined): PlaceInfo | undefined {
   return { key, lat: town[0], lon: town[1], count: town[2], ...(town.length === 4 ? { radiusKm: town[3] } : {}) };
 }
 
+/** Residents each of our US hints in a town stands for: about 1 in 1,200 of 1930, 1 in 1,400 of 1920, 1 in 4,400 of 1940. */
+const PEOPLE_PER_HINT = 550;
+
+/**
+ * Estimates how many people lived in a US town, from how many of our hints did: rough, so rounded to the hundred.
+ * Chile's counts come from too few people to say.
+ * @param info - The town, from placeInfo.
+ * @returns About how many people lived there, or undefined.
+ */
+export function townPopulation(info: PlaceInfo | undefined): number | undefined {
+  if (CHILE || !info || info.count < 1) return undefined;
+  return Math.round((info.count * PEOPLE_PER_HINT) / 100) * 100;
+}
+
 /**
  * Checks whether a town is small: few of our hints had someone living there, so a match there means more.
  * @param info - The town, from placeInfo.

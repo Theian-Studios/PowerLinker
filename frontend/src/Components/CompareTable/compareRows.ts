@@ -2,7 +2,7 @@ import { Person } from "../../Models/Person";
 import { Event } from "../../Models/Event";
 import { HighlightType } from "../../Models/HighlightType";
 import { MAX_YELLOW_YEAR_GAP, Scored, getDateHighlight, isPlaceholderPlace, placeParts, scoreName, scorePlace, scoreResidence, TOWN_LABEL, withoutCityDistrict, withoutTownSuffix } from "../../Services/highlightScoring";
-import { distanceKm, isSmallTown, nameRarity, placeInfo } from "../../Services/lookups";
+import { distanceKm, isSmallTown, nameRarity, placeInfo, townPopulation } from "../../Services/lookups";
 import { CHILE } from "../../Services/region";
 
 export type Status = "ok" | "close" | "bad" | "none";
@@ -561,7 +561,7 @@ const WIDEST_RANGE = 30;
 const BORDER_KM = CHILE ? 80 : 40;
 
 /**
- * Adds what's known about a row's two places: a match in a small town says so ("Same small town: Aquia"), and two
+ * Adds what's known about a row's two places: a match in a small town says so ("Same small town (~2,800)"), and two
  * different places close together say how far apart they are ("about 12 mi apart", or km on the Chilean site).
  * @param row - A row of the comparison.
  * @returns The row, with its reason extended when there's something to add.
@@ -578,8 +578,9 @@ function withPlaceDetail(row: CompareRow): CompareRow {
   const b = placeInfo(place(row.tree));
   if (a && b && a.key === b.key) {
     if (row.status !== "ok" || !isSmallTown(a)) return row;
-    const town = row.reason?.startsWith("Same town: ") ? row.reason.slice("Same town: ".length) : place(row.record).split(",")[0].replace(/\s*\(.*\)/, "").trim();
-    return { ...row, reason: `Same small town: ${town}`, showReason: true };
+    // About how many people lived there, rounded since it's estimated from our hints ("Same small town (~2,800)")
+    const people = townPopulation(a);
+    return { ...row, reason: `Same small town${people ? ` (~${people.toLocaleString("en-US")})` : ""}`, showReason: true };
   }
   // A row that already matches needs no distance; nor do two districts of one city ("Same town: Chicago")
   if (row.status === "ok" || row.reason?.startsWith("Same town: ")) return row;
