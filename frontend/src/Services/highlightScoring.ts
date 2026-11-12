@@ -312,6 +312,7 @@ export function placeParts(place: string): string[] {
     .filter((part) => /\p{L}/u.test(part) && !CENSUS_SUBDIVISION.test(part))
     // "Massachusetts Bay Colony" and "Connecticut Colony" are the states
     .map((part) => part.replace(/(\s+bay)?\s+colony$/, ""))
+    .map(withoutCityDistrict)
     .map(withoutTownSuffix)
     .map((part) => (CHILE ? chileRegionName(part) : part))
     .map((part) => PLACE_ALIASES[part] ?? part);
@@ -425,6 +426,20 @@ function scoreChilePlace(a: string[], b: string[], sameTime: boolean): Scored {
     return { highlight: HighlightType.Yellow, reason: pa.region && pb.region ? "Same region" : "Different places" };
   }
   return region ? { highlight: HighlightType.Green, reason: `Both in ${CHILE_REGION_DISPLAY[region]}` } : { highlight: HighlightType.Yellow, reason: "Same country" };
+}
+
+/** Words before "Ward 4" or "District 2" that name a rural area, not a city: "Police Jury Ward 4" stays as it is. */
+const AREA_DISTRICT_WORDS = /^(police jury|militia|election|justice|magisterial|supervisor'?s|supervisors|road|school|civil|commissioner'?s|beat|township|town|city|county|the)$/;
+
+/**
+ * Takes the ward or district off a city, so "Fort Wayne Ward 10", "Manhattan Assembly District 14" and "Fort Wayne"
+ * are one place: censuses name a city's wards, and a home in one ward is in the city.
+ * @param part - One cleaned place part.
+ * @returns The city, or the part as it was when it isn't a city's ward or district.
+ */
+export function withoutCityDistrict(part: string): string {
+  const match = part.match(/^(.+?)\s+(ward|assembly district|precinct|election district|district)\s+[0-9][0-9a-z-]*$/);
+  return match && !AREA_DISTRICT_WORDS.test(match[1]) ? match[1] : part;
 }
 
 /** Names whose "City" is part of the name, not a census label: Salt Lake City isn't Salt Lake County. */

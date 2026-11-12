@@ -181,26 +181,33 @@ if (region === "us" && option("records").length > 0) {
       if (state && town) gazTowns.set(`${town}|${state}`, [round(Number(row.INTPTLAT)), round(Number(row.INTPTLONG))]);
     }
   }
-  const gazCounties = new Map<string, [number, number]>();
+  // Counties: the center, and how far a home could be from it (the radius of a circle of the county's area, in km)
+  const gazCounties = new Map<string, [number, number, number]>();
   for (const path of option("gaz-counties")) {
     for (const row of readTable(path, "\t")) {
       const state = STATE_NAMES[row.USPS];
       const county = nameWords(row.NAME.replace(/\s+(county|parish|borough|census area|municipality|city and borough)$/i, "")).join(" ");
-      if (state && county) gazCounties.set(`${county}|${state}`, [round(Number(row.INTPTLAT)), round(Number(row.INTPTLONG))]);
+      const radiusKm = Math.round(Math.sqrt((Number(row.ALAND_SQMI) * 2.59) / Math.PI));
+      if (state && county) gazCounties.set(`${county}|${state}`, [round(Number(row.INTPTLAT)), round(Number(row.INTPTLONG)), radiusKm]);
     }
   }
 
-  // Every town people lived in, with where it is (when known) and how many of our people lived there
-  const places: Record<string, [number, number, number] | [number]> = {};
+  // Every town people lived in, with where it is (when known), how many of our people lived there, and for a place
+  // that's really a whole county (a record that names only "Scott, Kentucky", or a town we could only place by its
+  // county) how far from that point a home could be
+  const places: Record<string, [number, number, number] | [number, number, number, number] | [number]> = {};
   let located = 0;
   for (const [key, count] of townCounts) {
     const parts = key.split("|");
     const state = parts[parts.length - 2];
     const town = nameWords(parts[0]).join(" ");
     const county = parts.length >= 4 ? nameWords(parts[parts.length - 3]).join(" ") : undefined;
-    const at = coords.get(key) ?? gazTowns.get(`${town}|${state}`) ?? (county ? gazCounties.get(`${county}|${state}`) : undefined);
+    const wholeCounty = parts.length === 3 && gazCounties.get(`${town}|${state}`) && !gazTowns.has(`${town}|${state}`);
+    const exact = coords.get(key) ?? (wholeCounty ? undefined : gazTowns.get(`${town}|${state}`));
+    const area = wholeCounty ? gazCounties.get(`${town}|${state}`) : !exact && county ? gazCounties.get(`${county}|${state}`) : undefined;
+    const at = exact ?? area;
     if (at) located++;
-    places[key] = at ? [at[0], at[1], count] : [count];
+    places[key] = !at ? [count] : area && area[2] > 0 ? [at[0], at[1], count, area[2]] : [at[0], at[1], count];
   }
   const commonGiven = [...givenCounts].filter(([, n]) => n >= COMMON_NAME_COUNT).map(([name]) => name);
   const commonSurnames = [...surnameCounts].filter(([, n]) => n >= COMMON_NAME_COUNT).map(([name]) => name);

@@ -1,7 +1,7 @@
 import { Person } from "../../Models/Person";
 import { Event } from "../../Models/Event";
 import { HighlightType } from "../../Models/HighlightType";
-import { MAX_YELLOW_YEAR_GAP, Scored, getDateHighlight, isPlaceholderPlace, scoreName, scorePlace, scoreResidence, TOWN_LABEL, withoutTownSuffix } from "../../Services/highlightScoring";
+import { MAX_YELLOW_YEAR_GAP, Scored, getDateHighlight, isPlaceholderPlace, placeParts, scoreName, scorePlace, scoreResidence, TOWN_LABEL, withoutCityDistrict, withoutTownSuffix } from "../../Services/highlightScoring";
 import { distanceKm, isSmallTown, nameRarity, placeInfo } from "../../Services/lookups";
 import { CHILE } from "../../Services/region";
 
@@ -303,7 +303,9 @@ function birthAndChristening(recordPerson: Person, treePerson: Person | undefine
   if (exact) {
     const days = Math.round((Date.parse(christening.dateText!) - Date.parse(birth.dateText!)) / DAY_MS);
     if (!Number.isFinite(days)) return undefined;
-    if (days < 0) [status, reason] = ["bad", "Christened before birth"];
+    // A day or a few weeks the wrong way round is more likely a slip in one date than two different people
+    if (days < 0 && days >= -31) [status, reason] = ["close", `Christened ${-days} day${days === -1 ? "" : "s"} before birth`];
+    else if (days < 0) [status, reason] = ["bad", "Christened before birth"];
     else if (days <= 60) [status, reason] = ["ok", `Christened ${days} day${days === 1 ? "" : "s"} after birth`];
     else if (days <= 3 * 365) {
       const months = Math.min(11, Math.max(2, Math.round(days / 30.4)));
@@ -350,6 +352,8 @@ function birthplaceAndChristeningPlace(recordPerson: Person, treePerson: Person 
   if (recordBirth && !treeBirth && treeChristening && !recordChristening) [record, tree] = [recordBirth, treeChristening];
   else if (treeBirth && !recordBirth && recordChristening && !treeChristening) [record, tree] = [recordChristening, treeBirth];
   if (!record || !tree) return undefined;
+  // "Chile" or "United States" alone says nothing about where in the country
+  if (placeParts(record).length < 2 || placeParts(tree).length < 2) return undefined;
   const scored = scorePlace(record, tree);
   if (scored.highlight === HighlightType.None) return undefined;
   const status = toStatus(scored.highlight);
@@ -549,8 +553,12 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
   return rows.map(withPlaceDetail).map(withShortPlaces);
 }
 
-/** Places this close or closer (about 100 miles) show how far apart they are; further apart, the distance adds little. */
-const CLOSE_KM = 160;
+/** Places this close or closer (about 50 miles) show how far apart they are; further apart, the distance adds little. */
+const CLOSE_KM = 80;
+/** A range wider than this (in miles, or km in Chile) says too little to show: "4–63 mi apart". */
+const WIDEST_RANGE = 30;
+/** Places in different regions or states this close are neighbors across a line, not a conflict: worth a look. */
+const BORDER_KM = CHILE ? 80 : 40;
 
 /**
  * Adds what's known about a row's two places: a match in a small town says so ("Same small town: Aquia"), and two
@@ -573,10 +581,25 @@ function withPlaceDetail(row: CompareRow): CompareRow {
     const town = row.reason?.startsWith("Same town: ") ? row.reason.slice("Same town: ".length) : place(row.record).split(",")[0].replace(/\s*\(.*\)/, "").trim();
     return { ...row, reason: `Same small town: ${town}`, showReason: true };
   }
+  // A row that already matches needs no distance; nor do two districts of one city ("Same town: Chicago")
+  if (row.status === "ok" || row.reason?.startsWith("Same town: ")) return row;
   const km = distanceKm(a, b);
-  if (km === undefined || km < 1 || km > CLOSE_KM) return row;
-  const apart = CHILE ? `about ${Math.max(1, Math.round(km))} km apart` : `about ${Math.max(1, Math.round(km / 1.609))} mi apart`;
-  return { ...row, reason: row.reason ? `${row.reason} · ${apart}` : apart, showReason: true };
+  // A place that's a whole county ("Scott, Kentucky") could be anywhere in it, so the distance is a range
+  const spread = (a?.radiusKm ?? 0) + (b?.radiusKm ?? 0);
+  if (km === undefined || km - spread > CLOSE_KM || (spread === 0 && km < 1)) return row;
+  const unit = CHILE ? 1 : 1.609;
+  const near = Math.round(Math.max(0, km - spread) / unit);
+  const far = Math.max(1, Math.round((km + spread) / unit));
+  const label = CHILE ? "km" : "mi";
+  // When one place could be inside the other ("Davidson, Tennessee" and Nashville in it), a distance says nothing new,
+  // and a very wide range says too little
+  if (spread >= 5 && (near < 1 || far - near > WIDEST_RANGE)) return row;
+  const apart = spread < 5 ? `About ${Math.max(1, Math.round(km / unit))} ${label} apart` : `${near}–${far} ${label} apart`;
+  // With a distance, "Moved or a different person" and "Both in Wayne, Michigan" go without saying
+  const base = row.reason === "Moved or a different person" || row.reason?.startsWith("Both in ") ? undefined : row.reason;
+  // Neighbors across a region or state line ("Different regions", 63 km apart) are worth a look, not a conflict
+  const acrossLine = row.status === "bad" && (row.reason === "Different regions" || row.reason === "Different states") && km + spread <= BORDER_KM;
+  return { ...row, ...(acrossLine ? { status: "close" as Status } : {}), reason: base ? `${base} · ${apart}` : apart, showReason: true };
 }
 
 /** Census labels for a part of town, which say nothing to a volunteer: "Ward 13", "Assembly District 7", "Area B". */
@@ -711,7 +734,11 @@ export function sameTown(a?: string, b?: string): string | undefined {
     if (parts.length < 3) return undefined;
     // "St Louis (Independent City)" and "St. Louis City" are the same county
     const region = parts.slice(-2).map((part) => withoutTownSuffix(part.toLowerCase())).join(",");
-    const towns = new Map(parts.slice(0, -2).map((part) => [withoutTownSuffix(part.toLowerCase()), part.replace(PLACE_KIND, "")]));
+    // "Fort Wayne Ward 10" is in Fort Wayne
+    const towns = new Map(parts.slice(0, -2).map((part) => {
+      const city = withoutCityDistrict(part.toLowerCase());
+      return [withoutTownSuffix(city), city === part.toLowerCase() ? part.replace(PLACE_KIND, "") : part.slice(0, city.length)];
+    }));
     return { region, towns };
   };
   const first = a ? split(a) : undefined;

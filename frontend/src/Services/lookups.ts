@@ -7,8 +7,11 @@ import { useEffect, useState } from "react";
 import { CHILE } from "./region";
 import { chilePlace, nameWords, placeParts } from "./highlightScoring";
 
-/** A town: its center and how many of our people lived there, or only the count when its center isn't known. */
-type Town = [number, number, number] | [number];
+/**
+ * A town: its center and how many of our people lived there, or only the count when its center isn't known. A place
+ * that's really a whole county has a fourth number: how far from its center a home could be, in km.
+ */
+type Town = [number, number, number] | [number, number, number, number] | [number];
 
 /**
  * Towns with this many of our hints or fewer are called small. Our US hints are about 1 in 1,200 people of the 1930
@@ -51,9 +54,10 @@ function load<T>(path: string, use: (data: T | undefined) => void): void {
 }
 
 /**
- * Starts loading the names file (and on the Chilean site the communes too).
+ * Starts loading the names file (and on the Chilean site the communes too). The app calls it through useLookups;
+ * scripts that check the scoring call it directly.
  */
-function loadNames(): void {
+export function loadNames(): void {
   if (CHILE) {
     load<{ surnames: string[]; given: string[]; communes: Record<string, Town> }>("cl.json", (data) => {
       if (!data) return;
@@ -95,6 +99,8 @@ export interface PlaceInfo {
   lon?: number;
   /** How many of our people lived there. */
   count: number;
+  /** For a whole county, how far from its center a home could be, in km. */
+  radiusKm?: number;
 }
 
 /**
@@ -124,7 +130,8 @@ export function placeInfo(place: string | undefined): PlaceInfo | undefined {
     key = `${key}|${state}`;
   }
   if (!town || !key) return undefined;
-  return town.length === 3 ? { key, lat: town[0], lon: town[1], count: town[2] } : { key, count: town[0] };
+  if (town.length === 1) return { key, count: town[0] };
+  return { key, lat: town[0], lon: town[1], count: town[2], ...(town.length === 4 ? { radiusKm: town[3] } : {}) };
 }
 
 /**

@@ -424,10 +424,19 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     }
   }, [loading]);
 
-  // Pause the answers briefly each time a new hint appears, so a double tap can't answer one never seen
+  // Pause the answers briefly each time a new hint appears, so a double tap can't answer one never seen. Not after
+  // switching between duplicates and attachments: that was a deliberate tap, with no answer to double.
   const currentHint = context.hintQue[0];
+  const shownType = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (loading || !currentHint) return;
+    // A check hint is a duplicate whatever kind is chosen, so only a real hint's kind tells a switch apart
+    const switched = !currentHint.dummy && shownType.current !== undefined && shownType.current !== currentHint.type;
+    if (!currentHint.dummy) shownType.current = currentHint.type;
+    if (switched) {
+      setButtonsEnabled(true);
+      return;
+    }
     setButtonsEnabled(false);
     const timer = setTimeout(() => setButtonsEnabled(true), NEXT_HINT_PAUSE_MS);
     return () => clearTimeout(timer);
@@ -643,7 +652,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
     <div className="hint-kind" role="radiogroup" aria-label={tr("Kind of hint", "Tipo de sugerencia")}>
       {([
         ["possible_duplicate", usingSheets ? tr("Duplicates", "Duplicados") : tr("Possible duplicates", "Posibles duplicados"), tr("Two people on the tree", "Dos personas del árbol")],
-        ["record_attachment", usingSheets ? tr("Records", "Registros") : tr("Record attachments", "Registros para adjuntar"), tr("Record and tree person", "Registro y persona del árbol")],
+        ["record_attachment", usingSheets ? tr("Attachments", "Adjuntos") : tr("Record attachments", "Registros para adjuntar"), tr("Record and tree person", "Registro y persona del árbol")],
       ] as const).map(([value, label, detail]) => (
         <button
           key={value}

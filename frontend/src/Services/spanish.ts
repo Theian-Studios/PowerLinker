@@ -164,6 +164,7 @@ function onDate(date: string): string {
 const PATTERNS: [RegExp, (match: RegExpMatchArray) => string][] = [
   // Dates and timelines, from compareRows
   [/^(\d+) years? apart$/, (m) => `${years(m[1])} de diferencia`],
+  [/^Christened (\d+) (days?) before birth$/, (m) => `Bautizado ${m[1]} ${m[2] === "day" ? "día" : "días"} antes de nacer`],
   [/^Christened (\d+) (days?|months?|years?) after birth$/, (m) => `Bautizado ${m[1]} ${{ day: "día", days: "días", month: "mes", months: "meses", year: "año", years: "años" }[m[2]]} después de nacer`],
   [/^Born (\d{4})$/, (m) => `Nació en ${m[1]}`],
   [/^(.+) born (\d{4})$/, (m) => `${nameOf(m[1])} nació en ${m[2]}`],
@@ -182,7 +183,8 @@ const PATTERNS: [RegExp, (match: RegExpMatchArray) => string][] = [
   [/^Both in (.+)$/, (m) => `Ambos en ${m[1]}`],
   [/^Same small town: (.+)$/, (m) => `Mismo pueblo pequeño: ${m[1]}`],
   [/^Same town: (.+)$/, (m) => `Misma localidad: ${m[1]}`],
-  [/^about (\d+) km apart$/, (m) => `a unos ${m[1]} km`],
+  [/^About (\d+) km apart$/, (m) => `A unos ${m[1]} km`],
+  [/^(\d+)–(\d+) km apart$/, (m) => `Entre ${m[1]} y ${m[2]} km`],
   [/^(.+) is her married name$/, (m) => `${m[1]} es su apellido de casada`],
   // A row named after an event type compareRows doesn't list, such as "Immigration place"
   [/^(.+) place$/, (m) => `Lugar de ${(EXACT[m[1]] ?? m[1]).toLowerCase()}`],
@@ -198,7 +200,7 @@ const PATTERNS: [RegExp, (match: RegExpMatchArray) => string][] = [
  */
 export function spanishFor(text: string): string {
   // A distance added after a reason ("Same region · about 12 km apart") is translated apart from the reason
-  const distance = text.match(/^(.+) · about (\d+) km apart$/);
+  const distance = text.match(/^(.+) · About (\d+) km apart$/);
   if (distance) return `${spanishFor(distance[1])} · a unos ${distance[2]} km`;
   if (EXACT[text] !== undefined) return EXACT[text];
   // Relationships are also shown in lowercase ("son"), and stay lowercase
