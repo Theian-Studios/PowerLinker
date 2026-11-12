@@ -130,7 +130,7 @@ const PLAIN_LETTERS: Record<string, string> = { "ı": "i", "ł": "l", "ø": "o",
  * @param name - The name as written.
  * @returns Its words.
  */
-function nameWords(name: string): string[] {
+export function nameWords(name: string): string[] {
   return name.toLowerCase().replace(/[ıłøßæœđ]/g, (letter) => PLAIN_LETTERS[letter]).normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").replace(/['\u2019\u2018`]/g, "").replace(/[^a-z]+/g, " ").split(" ").filter(Boolean);
 }
@@ -296,7 +296,7 @@ const BORDER_GROUPS: string[][] = [
  * @param place - The place string to split.
  * @returns Lowercased, trimmed place parts with aliases applied.
  */
-function placeParts(place: string): string[] {
+export function placeParts(place: string): string[] {
   if (PLACEHOLDER_PLACES.test(place.trim())) return [];
   // In Chile accents are often left off (Concepción, Concepcion), and regions written several ways
   if (CHILE) place = place.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['\u2019]/g, "");
@@ -390,7 +390,7 @@ const CHILE_SPLIT_REGIONS = [["nuble", "biobio"], ["los rios", "los lagos"], ["a
  * @param parts - The place's cleaned parts, ending in "chile".
  * @returns The region and commune, when the place names them.
  */
-function chilePlace(parts: string[]): { region?: string; commune?: string } {
+export function chilePlace(parts: string[]): { region?: string; commune?: string } {
   const inside = parts.slice(0, -1);
   let region: string | undefined;
   for (let i = inside.length - 1; i >= 0 && !region; i--) region = CHILE_REGION_OF[inside[i]];

@@ -2,6 +2,8 @@ import { Person } from "../../Models/Person";
 import { Event } from "../../Models/Event";
 import { HighlightType } from "../../Models/HighlightType";
 import { MAX_YELLOW_YEAR_GAP, Scored, getDateHighlight, isPlaceholderPlace, scoreName, scorePlace, scoreResidence, TOWN_LABEL, withoutTownSuffix } from "../../Services/highlightScoring";
+import { distanceKm, isSmallTown, nameRarity, placeInfo } from "../../Services/lookups";
+import { CHILE } from "../../Services/region";
 
 export type Status = "ok" | "close" | "bad" | "none";
 
@@ -326,6 +328,35 @@ function birthAndChristening(recordPerson: Person, treePerson: Person | undefine
 }
 
 /**
+ * Compares a birthplace on one side with a christening place on the other, when that's all the two sides give:
+ * children were christened in or near the parish they were born in, so the two places should agree.
+ * @param recordPerson - The person on one side.
+ * @param treePerson - The person on the other side, if any.
+ * @returns A row with the birthplace on its side and the christening place on the other, or undefined.
+ */
+function birthplaceAndChristeningPlace(recordPerson: Person, treePerson: Person | undefined): CompareRow | undefined {
+  if (!treePerson) return undefined;
+  /**
+   * Finds where a person's first event of a type took place.
+   * @param person - Whose events to look through.
+   * @param type - Which kind of event: "birth" or "christening".
+   * @returns The place, if the event names one.
+   */
+  const placeOf = (person: Person, type: string) => person.personEvents.find((event) => event.sanitizedType === type && event.location)?.location;
+  const [recordBirth, treeBirth] = [placeOf(recordPerson, "birth"), placeOf(treePerson, "birth")];
+  const [recordChristening, treeChristening] = [placeOf(recordPerson, "christening"), placeOf(treePerson, "christening")];
+  let record: string | undefined;
+  let tree: string | undefined;
+  if (recordBirth && !treeBirth && treeChristening && !recordChristening) [record, tree] = [recordBirth, treeChristening];
+  else if (treeBirth && !recordBirth && recordChristening && !treeChristening) [record, tree] = [recordChristening, treeBirth];
+  if (!record || !tree) return undefined;
+  const scored = scorePlace(record, tree);
+  if (scored.highlight === HighlightType.None) return undefined;
+  const status = toStatus(scored.highlight);
+  return { label: "Birthplace / christening place", kind: "place", record, tree, status, reason: scored.reason ?? reasonFor("place", status, record, tree), showReason: status === "ok" && Boolean(scored.reason) };
+}
+
+/**
  * Builds the comparison rows for one record person and their tree match.
  * @param recordPerson - The person on the record.
  * @param treePerson - Their match on the tree, if there is one.
@@ -470,10 +501,11 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
 
   // A birth on one side and only a christening on the other: in parish records (Chile's, most of all) the
   // christening is often the only date, so the two are set side by side
-  const baptism = birthAndChristening(recordPerson, treePerson);
-  if (baptism) {
+  const baptism = [birthAndChristening(recordPerson, treePerson), birthplaceAndChristeningPlace(recordPerson, treePerson)]
+    .filter((row): row is CompareRow => Boolean(row));
+  if (baptism.length > 0) {
     const after = rows.reduce((last, row, i) => (["Born", "Birthplace", "Christened", "Christening place"].includes(row.label) ? i : last), 0);
-    rows.splice(after + 1, 0, baptism);
+    rows.splice(after + 1, 0, ...baptism);
   }
 
   // A spouse on one side with the surname the other side uses explains it: the tree's Fannie Hanovich
@@ -507,7 +539,44 @@ export function buildRows(recordPerson: Person, treePerson: Person | undefined, 
     if (!flagCommonName || exactBirth) rows[0] = { ...name, status: "ok", reason: undefined };
   }
 
-  return rows.map(withShortPlaces);
+  // A name matching exactly is stronger evidence when few people had it
+  if (treePerson && rows[0].status === "ok" && !rows[0].reason) {
+    const rare = nameRarity(recordPerson.firstName ?? "", recordPerson.lastName ?? "");
+    const reason = rare?.given && rare.surname ? "Rare name" : rare?.surname ? "Rare surname" : rare?.given ? "Rare first name" : undefined;
+    if (reason) rows[0] = { ...rows[0], reason, showReason: true };
+  }
+
+  return rows.map(withPlaceDetail).map(withShortPlaces);
+}
+
+/** Places this close or closer (about 100 miles) show how far apart they are; further apart, the distance adds little. */
+const CLOSE_KM = 160;
+
+/**
+ * Adds what's known about a row's two places: a match in a small town says so ("Same small town: Aquia"), and two
+ * different places close together say how far apart they are ("about 12 mi apart", or km on the Chilean site).
+ * @param row - A row of the comparison.
+ * @returns The row, with its reason extended when there's something to add.
+ */
+function withPlaceDetail(row: CompareRow): CompareRow {
+  if (row.kind !== "place" || !row.record || !row.tree) return row;
+  /**
+   * Takes the year off a residence shown with one ("1930 · Aquia, Stafford, Virginia").
+   * @param value - The value shown.
+   * @returns The place alone.
+   */
+  const place = (value: string) => value.replace(/^\d{4} · /, "");
+  const a = placeInfo(place(row.record));
+  const b = placeInfo(place(row.tree));
+  if (a && b && a.key === b.key) {
+    if (row.status !== "ok" || !isSmallTown(a)) return row;
+    const town = row.reason?.startsWith("Same town: ") ? row.reason.slice("Same town: ".length) : place(row.record).split(",")[0].replace(/\s*\(.*\)/, "").trim();
+    return { ...row, reason: `Same small town: ${town}`, showReason: true };
+  }
+  const km = distanceKm(a, b);
+  if (km === undefined || km < 1 || km > CLOSE_KM) return row;
+  const apart = CHILE ? `about ${Math.max(1, Math.round(km))} km apart` : `about ${Math.max(1, Math.round(km / 1.609))} mi apart`;
+  return { ...row, reason: row.reason ? `${row.reason} · ${apart}` : apart, showReason: true };
 }
 
 /** Census labels for a part of town, which say nothing to a volunteer: "Ward 13", "Assembly District 7", "Area B". */

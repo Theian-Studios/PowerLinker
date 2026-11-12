@@ -18,6 +18,10 @@ const EXACT: Record<string, string> = {
   "Christened": "Bautizo",
   "Christening place": "Lugar de bautizo",
   "Born / christened": "Nació / bautizo",
+  "Birthplace / christening place": "Lugar de nacimiento / bautizo",
+  "Rare surname": "Apellido poco común",
+  "Rare first name": "Nombre poco común",
+  "Rare name": "Nombre y apellido poco comunes",
   "Christened before birth": "Bautizado antes de nacer",
   "Christened soon after birth": "Bautizado poco después de nacer",
   "Buried": "Sepultado",
@@ -176,7 +180,9 @@ const PATTERNS: [RegExp, (match: RegExpMatchArray) => string][] = [
   // Places, from highlightScoring and compareRows
   [/^Both in the (.+)$/, (m) => `Ambos en ${COUNTRIES[m[1]] ?? m[1]}`],
   [/^Both in (.+)$/, (m) => `Ambos en ${m[1]}`],
+  [/^Same small town: (.+)$/, (m) => `Mismo pueblo pequeño: ${m[1]}`],
   [/^Same town: (.+)$/, (m) => `Misma localidad: ${m[1]}`],
+  [/^about (\d+) km apart$/, (m) => `a unos ${m[1]} km`],
   [/^(.+) is her married name$/, (m) => `${m[1]} es su apellido de casada`],
   // A row named after an event type compareRows doesn't list, such as "Immigration place"
   [/^(.+) place$/, (m) => `Lugar de ${(EXACT[m[1]] ?? m[1]).toLowerCase()}`],
@@ -191,6 +197,9 @@ const PATTERNS: [RegExp, (match: RegExpMatchArray) => string][] = [
  * @returns The Spanish, or the text unchanged when there's no translation for it.
  */
 export function spanishFor(text: string): string {
+  // A distance added after a reason ("Same region · about 12 km apart") is translated apart from the reason
+  const distance = text.match(/^(.+) · about (\d+) km apart$/);
+  if (distance) return `${spanishFor(distance[1])} · a unos ${distance[2]} km`;
   if (EXACT[text] !== undefined) return EXACT[text];
   // Relationships are also shown in lowercase ("son"), and stay lowercase
   const capitalized = text.charAt(0).toUpperCase() + text.slice(1);

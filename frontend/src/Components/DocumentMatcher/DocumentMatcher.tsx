@@ -18,6 +18,7 @@ import { animate, prefersReducedMotion } from "../../Services/motion.ts";
 import { UnsureReason } from "../../Hooks/useQueue.ts";
 import CheckReview, { CheckReviewData, reviewFacts } from "../CheckReview/CheckReview";
 import { CHILE, inSiteLanguage, tr } from "../../Services/region";
+import { useLookups } from "../../Services/lookups";
 import { say } from "../../Services/spanish.ts";
 
 /** Tree relationships a record relationship can match, since records are often less specific ("parent"). */
@@ -479,6 +480,7 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
   const isFamily = !noHint && matches.length > 1;
 
   // One set of comparisons feeds both the tables and the desktop evidence summary
+  const lookups = useLookups();
   const people: (PersonRows & FamilyMember)[] = useMemo(() => {
     // Spouses on each side, whose surnames can explain a woman's different surname
     const spouses = matches.filter((match) => match.recordPerson.relationship === Relationship.Spouse);
@@ -514,7 +516,9 @@ export default function DocumentMatcher({ submit, loading, setLoading, hintType,
         notOnTree: !treePerson,
       };
     });
-  }, [matches]);
+    // Rebuilt when name and place lookups arrive, which add notes like "Rare surname" and "about 12 mi apart"
+    // eslint-disable-next-line reactHooks/exhaustive-deps
+  }, [matches, lookups]);
   // The main person is sorted first; everyone after them is family
   const family = useMemo(() => people.slice(1), [people]);
 

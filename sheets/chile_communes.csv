@@ -1,0 +1,367 @@
+key,region,lat,lon,name
+arica,arica y parinacota,-18.4783,-70.3126,Arica
+camarones,arica y parinacota,-19.1594,-70.1797,Camarones
+putre,arica y parinacota,-18.1975,-69.5597,Putre
+general lagos,arica y parinacota,-17.5950,-69.4770,General Lagos
+iquique,tarapaca,-20.2133,-70.1503,Iquique
+alto hospicio,tarapaca,-20.2681,-70.1008,Alto Hospicio
+pozo almonte,tarapaca,-20.2569,-69.7864,Pozo Almonte
+camina,tarapaca,-19.3122,-69.4256,Camiña
+colchane,tarapaca,-19.2756,-68.6381,Colchane
+huara,tarapaca,-19.9958,-69.7708,Huara
+pica,tarapaca,-20.4900,-69.3294,Pica
+antofagasta,antofagasta,-23.6509,-70.3975,Antofagasta
+mejillones,antofagasta,-23.1000,-70.4500,Mejillones
+sierra gorda,antofagasta,-22.8889,-69.3211,Sierra Gorda
+taltal,antofagasta,-25.4053,-70.4847,Taltal
+calama,antofagasta,-22.4544,-68.9294,Calama
+ollague,antofagasta,-21.2236,-68.2536,Ollagüe
+san pedro de atacama,antofagasta,-22.9087,-68.1997,San Pedro de Atacama
+tocopilla,antofagasta,-22.0920,-70.1979,Tocopilla
+maria elena,antofagasta,-22.3456,-69.6603,María Elena
+copiapo,atacama,-27.3668,-70.3314,Copiapó
+caldera,atacama,-27.0667,-70.8167,Caldera
+tierra amarilla,atacama,-27.4833,-70.2667,Tierra Amarilla
+chanaral,atacama,-26.3479,-70.6224,Chañaral
+diego de almagro,atacama,-26.3911,-70.0461,Diego de Almagro
+vallenar,atacama,-28.5708,-70.7581,Vallenar
+alto del carmen,atacama,-28.7500,-70.4833,Alto del Carmen
+freirina,atacama,-28.5000,-71.0833,Freirina
+huasco,atacama,-28.4667,-71.2167,Huasco
+la serena,coquimbo,-29.9045,-71.2489,La Serena
+coquimbo,coquimbo,-29.9533,-71.3436,Coquimbo
+andacollo,coquimbo,-30.2306,-71.0847,Andacollo
+la higuera,coquimbo,-29.5050,-71.2006,La Higuera
+paihuano,coquimbo,-30.0286,-70.5181,Paihuano
+vicuna,coquimbo,-30.0319,-70.7081,Vicuña
+illapel,coquimbo,-31.6331,-71.1661,Illapel
+canela,coquimbo,-31.3975,-71.4572,Canela
+los vilos,coquimbo,-31.9114,-71.5100,Los Vilos
+salamanca,coquimbo,-31.7756,-70.9639,Salamanca
+ovalle,coquimbo,-30.6015,-71.1997,Ovalle
+combarbala,coquimbo,-31.1789,-71.0028,Combarbalá
+monte patria,coquimbo,-30.6939,-70.9564,Monte Patria
+punitaqui,coquimbo,-30.8333,-71.2667,Punitaqui
+rio hurtado,coquimbo,-30.4069,-70.9306,Río Hurtado
+paiguano,coquimbo,-30.0286,-70.5181,Paihuano
+valparaiso,valparaiso,-33.0472,-71.6127,Valparaíso
+casablanca,valparaiso,-33.3194,-71.4089,Casablanca
+concon,valparaiso,-32.9306,-71.5181,Concón
+juan fernandez,valparaiso,-33.6383,-78.8331,Juan Fernández
+puchuncavi,valparaiso,-32.7258,-71.4136,Puchuncaví
+quintero,valparaiso,-32.7833,-71.5333,Quintero
+vina del mar,valparaiso,-33.0245,-71.5518,Viña del Mar
+isla de pascua,valparaiso,-27.1497,-109.4278,Isla de Pascua
+los andes,valparaiso,-32.8337,-70.5983,Los Andes
+calle larga,valparaiso,-32.8583,-70.6247,Calle Larga
+rinconada,valparaiso,-32.8333,-70.7000,Rinconada
+san esteban,valparaiso,-32.8000,-70.5833,San Esteban
+la ligua,valparaiso,-32.4522,-71.2311,La Ligua
+cabildo,valparaiso,-32.4267,-71.0667,Cabildo
+papudo,valparaiso,-32.5072,-71.4467,Papudo
+petorca,valparaiso,-32.2500,-70.9333,Petorca
+zapallar,valparaiso,-32.5533,-71.4592,Zapallar
+quillota,valparaiso,-32.8833,-71.2500,Quillota
+la calera,valparaiso,-32.7833,-71.2000,La Calera
+hijuelas,valparaiso,-32.8000,-71.1500,Hijuelas
+la cruz,valparaiso,-32.8261,-71.2283,La Cruz
+nogales,valparaiso,-32.7333,-71.2000,Nogales
+san antonio,valparaiso,-33.5933,-71.6217,San Antonio
+algarrobo,valparaiso,-33.3667,-71.6667,Algarrobo
+cartagena,valparaiso,-33.5500,-71.6000,Cartagena
+el quisco,valparaiso,-33.4000,-71.7000,El Quisco
+el tabo,valparaiso,-33.4500,-71.6667,El Tabo
+santo domingo,valparaiso,-33.6333,-71.6500,Santo Domingo
+san felipe,valparaiso,-32.7500,-70.7333,San Felipe
+catemu,valparaiso,-32.7833,-70.9667,Catemu
+llaillay,valparaiso,-32.8417,-70.9583,Llaillay
+panquehue,valparaiso,-32.8000,-70.8333,Panquehue
+putaendo,valparaiso,-32.6333,-70.7167,Putaendo
+santa maria,valparaiso,-32.7500,-70.6667,Santa María
+quilpue,valparaiso,-33.0500,-71.4417,Quilpué
+limache,valparaiso,-33.0167,-71.2667,Limache
+olmue,valparaiso,-33.0000,-71.1833,Olmué
+villa alemana,valparaiso,-33.0422,-71.3733,Villa Alemana
+con con,valparaiso,-32.9306,-71.5181,Concón
+calera,valparaiso,-32.7833,-71.2000,La Calera
+llay llay,valparaiso,-32.8417,-70.9583,Llaillay
+rapa nui,valparaiso,-27.1497,-109.4278,Isla de Pascua
+santiago,metropolitana,-33.4378,-70.6505,Santiago
+cerrillos,metropolitana,-33.4986,-70.7158,Cerrillos
+cerro navia,metropolitana,-33.4250,-70.7364,Cerro Navia
+conchali,metropolitana,-33.3842,-70.6753,Conchalí
+el bosque,metropolitana,-33.5636,-70.6758,El Bosque
+estacion central,metropolitana,-33.4592,-70.6994,Estación Central
+huechuraba,metropolitana,-33.3667,-70.6333,Huechuraba
+independencia,metropolitana,-33.4167,-70.6667,Independencia
+la cisterna,metropolitana,-33.5300,-70.6636,La Cisterna
+la florida,metropolitana,-33.5228,-70.5986,La Florida
+la granja,metropolitana,-33.5383,-70.6297,La Granja
+la pintana,metropolitana,-33.5833,-70.6333,La Pintana
+la reina,metropolitana,-33.4500,-70.5500,La Reina
+las condes,metropolitana,-33.4083,-70.5672,Las Condes
+lo barnechea,metropolitana,-33.3500,-70.5167,Lo Barnechea
+lo espejo,metropolitana,-33.5250,-70.6917,Lo Espejo
+lo prado,metropolitana,-33.4444,-70.7258,Lo Prado
+macul,metropolitana,-33.4911,-70.6014,Macul
+maipu,metropolitana,-33.5167,-70.7667,Maipú
+nunoa,metropolitana,-33.4569,-70.5975,Ñuñoa
+pedro aguirre cerda,metropolitana,-33.4917,-70.6750,Pedro Aguirre Cerda
+penalolen,metropolitana,-33.4833,-70.5333,Peñalolén
+providencia,metropolitana,-33.4314,-70.6094,Providencia
+pudahuel,metropolitana,-33.4400,-70.7500,Pudahuel
+quilicura,metropolitana,-33.3667,-70.7333,Quilicura
+quinta normal,metropolitana,-33.4333,-70.7000,Quinta Normal
+recoleta,metropolitana,-33.4000,-70.6333,Recoleta
+renca,metropolitana,-33.4000,-70.7167,Renca
+san joaquin,metropolitana,-33.4950,-70.6283,San Joaquín
+san miguel,metropolitana,-33.4972,-70.6511,San Miguel
+san ramon,metropolitana,-33.5333,-70.6417,San Ramón
+vitacura,metropolitana,-33.3833,-70.5667,Vitacura
+puente alto,metropolitana,-33.6167,-70.5833,Puente Alto
+pirque,metropolitana,-33.6333,-70.5500,Pirque
+san jose de maipo,metropolitana,-33.6417,-70.3517,San José de Maipo
+colina,metropolitana,-33.2000,-70.6833,Colina
+lampa,metropolitana,-33.2833,-70.8833,Lampa
+tiltil,metropolitana,-33.0833,-70.9333,Tiltil
+san bernardo,metropolitana,-33.5925,-70.7036,San Bernardo
+buin,metropolitana,-33.7333,-70.7500,Buin
+calera de tango,metropolitana,-33.6297,-70.7808,Calera de Tango
+paine,metropolitana,-33.8167,-70.7500,Paine
+melipilla,metropolitana,-33.6833,-71.2167,Melipilla
+alhue,metropolitana,-34.0333,-71.1000,Alhué
+curacavi,metropolitana,-33.4000,-71.1333,Curacaví
+maria pinto,metropolitana,-33.5167,-71.1167,María Pinto
+san pedro,metropolitana,-33.9000,-71.4667,San Pedro
+talagante,metropolitana,-33.6667,-70.9333,Talagante
+el monte,metropolitana,-33.6833,-71.0167,El Monte
+isla de maipo,metropolitana,-33.7500,-70.9000,Isla de Maipo
+padre hurtado,metropolitana,-33.5667,-70.8167,Padre Hurtado
+penaflor,metropolitana,-33.6167,-70.8833,Peñaflor
+santiago de chile,metropolitana,-33.4378,-70.6505,Santiago
+santiago centro,metropolitana,-33.4378,-70.6505,Santiago
+til til,metropolitana,-33.0833,-70.9333,Tiltil
+rancagua,ohiggins,-34.1708,-70.7444,Rancagua
+codegua,ohiggins,-34.0333,-70.6667,Codegua
+coinco,ohiggins,-34.2667,-70.9667,Coinco
+coltauco,ohiggins,-34.2833,-71.0833,Coltauco
+donihue,ohiggins,-34.2167,-70.9667,Doñihue
+graneros,ohiggins,-34.0667,-70.7333,Graneros
+las cabras,ohiggins,-34.3000,-71.3167,Las Cabras
+machali,ohiggins,-34.1833,-70.6667,Machalí
+malloa,ohiggins,-34.4500,-70.9500,Malloa
+mostazal,ohiggins,-33.9833,-70.7000,Mostazal
+olivar,ohiggins,-34.2167,-70.8167,Olivar
+peumo,ohiggins,-34.4000,-71.1667,Peumo
+pichidegua,ohiggins,-34.3500,-71.2833,Pichidegua
+quinta de tilcoco,ohiggins,-34.3500,-70.9833,Quinta de Tilcoco
+rengo,ohiggins,-34.4167,-70.8667,Rengo
+requinoa,ohiggins,-34.2833,-70.8167,Requínoa
+san vicente,ohiggins,-34.4333,-71.0833,San Vicente
+pichilemu,ohiggins,-34.3872,-72.0033,Pichilemu
+la estrella,ohiggins,-34.2000,-71.6667,La Estrella
+litueche,ohiggins,-34.1167,-71.7333,Litueche
+marchihue,ohiggins,-34.4000,-71.6167,Marchihue
+navidad,ohiggins,-33.9333,-71.8333,Navidad
+paredones,ohiggins,-34.6500,-71.9000,Paredones
+san fernando,ohiggins,-34.5833,-70.9833,San Fernando
+chepica,ohiggins,-34.7333,-71.2833,Chépica
+chimbarongo,ohiggins,-34.7000,-71.0500,Chimbarongo
+lolol,ohiggins,-34.7667,-71.6500,Lolol
+nancagua,ohiggins,-34.6667,-71.1833,Nancagua
+palmilla,ohiggins,-34.6000,-71.3667,Palmilla
+peralillo,ohiggins,-34.4833,-71.4833,Peralillo
+placilla,ohiggins,-34.6333,-71.1167,Placilla
+pumanque,ohiggins,-34.6000,-71.6667,Pumanque
+santa cruz,ohiggins,-34.6333,-71.3667,Santa Cruz
+marchigue,ohiggins,-34.4000,-71.6167,Marchihue
+san vicente de tagua tagua,ohiggins,-34.4333,-71.0833,San Vicente
+san francisco de mostazal,ohiggins,-33.9833,-70.7000,Mostazal
+talca,maule,-35.4264,-71.6554,Talca
+constitucion,maule,-35.3333,-72.4167,Constitución
+curepto,maule,-35.0833,-72.0167,Curepto
+empedrado,maule,-35.6000,-72.2833,Empedrado
+maule,maule,-35.5333,-71.7000,Maule
+pelarco,maule,-35.3833,-71.4500,Pelarco
+pencahue,maule,-35.4000,-71.8167,Pencahue
+rio claro,maule,-35.2833,-71.2667,Río Claro
+san clemente,maule,-35.5500,-71.4833,San Clemente
+san rafael,maule,-35.3167,-71.5333,San Rafael
+cauquenes,maule,-35.9667,-72.3167,Cauquenes
+chanco,maule,-35.7333,-72.5333,Chanco
+pelluhue,maule,-35.8333,-72.6333,Pelluhue
+curico,maule,-34.9828,-71.2394,Curicó
+hualane,maule,-34.9667,-71.8000,Hualañé
+licanten,maule,-34.9833,-72.0000,Licantén
+molina,maule,-35.1167,-71.2833,Molina
+rauco,maule,-34.9333,-71.3167,Rauco
+romeral,maule,-34.9667,-71.1333,Romeral
+sagrada familia,maule,-35.0000,-71.3833,Sagrada Familia
+teno,maule,-34.8667,-71.1833,Teno
+vichuquen,maule,-34.8833,-72.0000,Vichuquén
+linares,maule,-35.8500,-71.6000,Linares
+colbun,maule,-35.7000,-71.4167,Colbún
+longavi,maule,-35.9667,-71.6833,Longaví
+parral,maule,-36.1500,-71.8333,Parral
+retiro,maule,-36.0500,-71.7667,Retiro
+san javier,maule,-35.6000,-71.7333,San Javier
+villa alegre,maule,-35.6833,-71.7500,Villa Alegre
+yerbas buenas,maule,-35.7500,-71.5833,Yerbas Buenas
+chillan,nuble,-36.6066,-72.1034,Chillán
+chillan viejo,nuble,-36.6333,-72.1333,Chillán Viejo
+bulnes,nuble,-36.7333,-72.3000,Bulnes
+el carmen,nuble,-36.9000,-72.0333,El Carmen
+pemuco,nuble,-36.9667,-72.1000,Pemuco
+pinto,nuble,-36.7000,-71.9000,Pinto
+quillon,nuble,-36.7333,-72.4667,Quillón
+san ignacio,nuble,-36.8000,-71.9833,San Ignacio
+yungay,nuble,-37.1167,-72.0167,Yungay
+quirihue,nuble,-36.2833,-72.5333,Quirihue
+cobquecura,nuble,-36.1333,-72.8000,Cobquecura
+coelemu,nuble,-36.4833,-72.7000,Coelemu
+ninhue,nuble,-36.4000,-72.4000,Ninhue
+portezuelo,nuble,-36.5333,-72.4333,Portezuelo
+ranquil,nuble,-36.5833,-72.5333,Ránquil
+treguaco,nuble,-36.4167,-72.6667,Treguaco
+san carlos,nuble,-36.4248,-71.9580,San Carlos
+coihueco,nuble,-36.6167,-71.8333,Coihueco
+niquen,nuble,-36.3000,-71.9500,Ñiquén
+san fabian,nuble,-36.5500,-71.5500,San Fabián
+san nicolas,nuble,-36.5000,-72.2167,San Nicolás
+trehuaco,nuble,-36.4167,-72.6667,Treguaco
+concepcion,biobio,-36.8270,-73.0503,Concepción
+coronel,biobio,-37.0167,-73.1500,Coronel
+chiguayante,biobio,-36.9167,-73.0167,Chiguayante
+florida,biobio,-36.8167,-72.6667,Florida
+hualqui,biobio,-36.9667,-72.9333,Hualqui
+lota,biobio,-37.0833,-73.1500,Lota
+penco,biobio,-36.7333,-72.9833,Penco
+san pedro de la paz,biobio,-36.8333,-73.1000,San Pedro de la Paz
+santa juana,biobio,-37.1667,-72.9333,Santa Juana
+talcahuano,biobio,-36.7167,-73.1167,Talcahuano
+tome,biobio,-36.6167,-72.9500,Tomé
+hualpen,biobio,-36.7833,-73.0833,Hualpén
+lebu,biobio,-37.6167,-73.6500,Lebu
+arauco,biobio,-37.2500,-73.3167,Arauco
+canete,biobio,-37.8000,-73.4000,Cañete
+contulmo,biobio,-38.0000,-73.2333,Contulmo
+curanilahue,biobio,-37.4667,-73.3500,Curanilahue
+los alamos,biobio,-37.6167,-73.4667,Los Álamos
+tirua,biobio,-38.3333,-73.5000,Tirúa
+los angeles,biobio,-37.4697,-72.3537,Los Ángeles
+antuco,biobio,-37.3333,-71.6833,Antuco
+cabrero,biobio,-37.0333,-72.4000,Cabrero
+laja,biobio,-37.2833,-72.7167,Laja
+mulchen,biobio,-37.7167,-72.2333,Mulchén
+nacimiento,biobio,-37.5000,-72.6667,Nacimiento
+negrete,biobio,-37.5833,-72.5167,Negrete
+quilaco,biobio,-37.6833,-72.0000,Quilaco
+quilleco,biobio,-37.4667,-71.9667,Quilleco
+san rosendo,biobio,-37.2667,-72.7167,San Rosendo
+santa barbara,biobio,-37.6667,-72.0167,Santa Bárbara
+tucapel,biobio,-37.2333,-71.9500,Tucapel
+yumbel,biobio,-37.1000,-72.5667,Yumbel
+alto biobio,biobio,-37.9900,-71.5300,Alto Biobío
+alto bio bio,biobio,-37.9900,-71.5300,Alto Biobío
+temuco,araucania,-38.7359,-72.5904,Temuco
+carahue,araucania,-38.7000,-73.1667,Carahue
+cholchol,araucania,-38.6000,-72.8500,Cholchol
+cunco,araucania,-38.9333,-72.0333,Cunco
+curarrehue,araucania,-39.3500,-71.5833,Curarrehue
+freire,araucania,-38.9500,-72.6333,Freire
+galvarino,araucania,-38.4000,-72.7833,Galvarino
+gorbea,araucania,-39.1000,-72.6833,Gorbea
+lautaro,araucania,-38.5333,-72.4333,Lautaro
+loncoche,araucania,-39.3667,-72.6333,Loncoche
+melipeuco,araucania,-38.8500,-71.7000,Melipeuco
+nueva imperial,araucania,-38.7333,-72.9500,Nueva Imperial
+padre las casas,araucania,-38.7667,-72.6000,Padre Las Casas
+perquenco,araucania,-38.4167,-72.3833,Perquenco
+pitrufquen,araucania,-38.9833,-72.6500,Pitrufquén
+pucon,araucania,-39.2833,-71.9667,Pucón
+saavedra,araucania,-38.7833,-73.4000,Saavedra
+teodoro schmidt,araucania,-39.0000,-73.0833,Teodoro Schmidt
+tolten,araucania,-39.2167,-73.2167,Toltén
+vilcun,araucania,-38.6667,-72.2333,Vilcún
+villarrica,araucania,-39.2833,-72.2167,Villarrica
+angol,araucania,-37.8000,-72.7167,Angol
+collipulli,araucania,-37.9500,-72.4333,Collipulli
+curacautin,araucania,-38.4333,-71.8833,Curacautín
+ercilla,araucania,-38.0500,-72.3833,Ercilla
+lonquimay,araucania,-38.4333,-71.2333,Lonquimay
+los sauces,araucania,-37.9667,-72.8333,Los Sauces
+lumaco,araucania,-38.1500,-72.9000,Lumaco
+puren,araucania,-38.0333,-73.0667,Purén
+renaico,araucania,-37.6667,-72.5667,Renaico
+traiguen,araucania,-38.2500,-72.6667,Traiguén
+victoria,araucania,-38.2333,-72.3333,Victoria
+chol chol,araucania,-38.6000,-72.8500,Cholchol
+valdivia,los rios,-39.8142,-73.2459,Valdivia
+corral,los rios,-39.8833,-73.4333,Corral
+lanco,los rios,-39.4500,-72.7667,Lanco
+los lagos,los rios,-39.8500,-72.8333,Los Lagos
+mafil,los rios,-39.6667,-72.9500,Máfil
+mariquina,los rios,-39.5333,-72.9667,Mariquina
+paillaco,los rios,-40.0667,-72.8667,Paillaco
+panguipulli,los rios,-39.6333,-72.3333,Panguipulli
+la union,los rios,-40.2833,-73.0833,La Unión
+futrono,los rios,-40.1333,-72.3833,Futrono
+lago ranco,los rios,-40.3167,-72.5000,Lago Ranco
+rio bueno,los rios,-40.3333,-72.9500,Río Bueno
+san jose de la mariquina,los rios,-39.5333,-72.9667,Mariquina
+puerto montt,los lagos,-41.4693,-72.9424,Puerto Montt
+calbuco,los lagos,-41.7667,-73.1333,Calbuco
+cochamo,los lagos,-41.4833,-72.3000,Cochamó
+fresia,los lagos,-41.1500,-73.4167,Fresia
+frutillar,los lagos,-41.1167,-73.0500,Frutillar
+los muermos,los lagos,-41.4000,-73.4667,Los Muermos
+llanquihue,los lagos,-41.2500,-73.0167,Llanquihue
+maullin,los lagos,-41.6167,-73.6000,Maullín
+puerto varas,los lagos,-41.3167,-72.9833,Puerto Varas
+castro,los lagos,-42.4800,-73.7622,Castro
+ancud,los lagos,-41.8667,-73.8333,Ancud
+chonchi,los lagos,-42.6167,-73.7667,Chonchi
+curaco de velez,los lagos,-42.4333,-73.6000,Curaco de Vélez
+dalcahue,los lagos,-42.3833,-73.6500,Dalcahue
+puqueldon,los lagos,-42.6000,-73.6667,Puqueldón
+queilen,los lagos,-42.8833,-73.4833,Queilén
+quellon,los lagos,-43.1167,-73.6167,Quellón
+quemchi,los lagos,-42.1333,-73.4667,Quemchi
+quinchao,los lagos,-42.4667,-73.4833,Quinchao
+osorno,los lagos,-40.5739,-73.1336,Osorno
+puerto octay,los lagos,-40.9667,-72.8833,Puerto Octay
+purranque,los lagos,-40.9167,-73.1667,Purranque
+puyehue,los lagos,-40.6833,-72.6000,Puyehue
+rio negro,los lagos,-40.7833,-73.2333,Río Negro
+san juan de la costa,los lagos,-40.5333,-73.4167,San Juan de la Costa
+san pablo,los lagos,-40.4167,-73.0167,San Pablo
+chaiten,los lagos,-42.9167,-72.7167,Chaitén
+futaleufu,los lagos,-43.1833,-71.8667,Futaleufú
+hualaihue,los lagos,-41.9667,-72.4667,Hualaihué
+palena,los lagos,-43.6167,-71.8000,Palena
+coyhaique,aysen,-45.5712,-72.0685,Coyhaique
+lago verde,aysen,-44.2333,-71.8333,Lago Verde
+aysen,aysen,-45.4000,-72.6833,Aysén
+cisnes,aysen,-44.7333,-72.6833,Cisnes
+guaitecas,aysen,-43.9000,-73.7500,Guaitecas
+cochrane,aysen,-47.2500,-72.5667,Cochrane
+o higgins,aysen,-48.4667,-72.5667,O'Higgins
+tortel,aysen,-47.8000,-73.5333,Tortel
+chile chico,aysen,-46.5500,-71.7167,Chile Chico
+rio ibanez,aysen,-46.3000,-71.9333,Río Ibáñez
+coihaique,aysen,-45.5712,-72.0685,Coyhaique
+aisen,aysen,-45.4000,-72.6833,Aysén
+puerto aysen,aysen,-45.4000,-72.6833,Aysén
+puerto aisen,aysen,-45.4000,-72.6833,Aysén
+punta arenas,magallanes,-53.1638,-70.9171,Punta Arenas
+laguna blanca,magallanes,-52.4333,-71.4167,Laguna Blanca
+rio verde,magallanes,-52.5833,-71.5000,Río Verde
+san gregorio,magallanes,-52.4500,-69.5500,San Gregorio
+cabo de hornos,magallanes,-54.9333,-67.6167,Cabo de Hornos
+antartica,magallanes,-54.9333,-67.6167,Antártica
+porvenir,magallanes,-53.3000,-70.3667,Porvenir
+primavera,magallanes,-52.7667,-69.2833,Primavera
+timaukel,magallanes,-53.6333,-69.6500,Timaukel
+natales,magallanes,-51.7333,-72.5000,Natales
+torres del paine,magallanes,-51.2667,-72.3333,Torres del Paine
+puerto natales,magallanes,-51.7333,-72.5000,Natales
