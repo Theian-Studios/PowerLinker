@@ -12,6 +12,8 @@ function regionPage(chile: boolean): Plugin {
     name: "region-page",
     transformIndexHtml: (html) => chile
       ? html.replace('<html lang="en">', '<html lang="es">').replace("<title>Power Linker</title>", "<title>PowerLinker Chile</title>")
+        .replace('<meta property="og:title" content="PowerLinker" />', '<meta property="og:title" content="PowerLinker Chile" />')
+        .replace(/<meta property="og:description" content="[^"]*" \/>/, '<meta property="og:description" content="Ayuda a las familias a encontrar a sus antepasados uniendo a personas en registros históricos." />')
       : html,
   };
 }
